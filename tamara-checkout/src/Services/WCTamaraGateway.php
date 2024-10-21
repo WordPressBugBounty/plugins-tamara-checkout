@@ -440,8 +440,11 @@ class WCTamaraGateway extends WC_Payment_Gateway
             $tamaraCheckoutUrl = $checkoutResponse->getCheckoutResponse()->getCheckoutUrl();
             $tamaraCheckoutSessionId = $checkoutResponse->getCheckoutResponse()->getCheckoutId();
 
+            update_post_meta($orderId, '_tamara_checkout_session_id', $tamaraCheckoutSessionId);
             update_post_meta($orderId, 'tamara_checkout_session_id', $tamaraCheckoutSessionId);
+            update_post_meta($orderId, '_tamara_checkout_url', $tamaraCheckoutUrl);
             update_post_meta($orderId, 'tamara_checkout_url', $tamaraCheckoutUrl);
+            update_post_meta($orderId, '_tamara_payment_type', $checkoutPaymentType);
             update_post_meta($orderId, 'tamara_payment_type', $checkoutPaymentType);
             if ($checkoutPaymentType === static::PAYMENT_TYPE_PAY_BY_INSTALMENTS && !empty($instalmentPeriod)) {
                 update_post_meta($orderId, 'tamara_payment_type_instalment', $instalmentPeriod);

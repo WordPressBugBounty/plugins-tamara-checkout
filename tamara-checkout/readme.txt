@@ -4,7 +4,7 @@ Tags: tamara, tamara-checkout, tamara-payment, e-commerce, store, sales, sell, w
 Requires at least: 5.0
 Tested up to: 6.6
 Requires PHP: 7.2+
-Stable tag: 1.9.7
+Stable tag: 1.9.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,12 @@ tamara is the best way to pay for your online shopping.
 For more information about the documentation, user guides and the FAQs, please visit: [our website](https://tamara.co/en/faq.html)
 
 == Changelog ==
+
+= 1.9.8 - 2024-10-21 =
+
+Bugfixes:
+
+* Fix the cron issues
 
 = 1.9.7 - 2024-07-18 =
 

@@ -259,7 +259,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
         add_action('wp_head', [$this, 'tamaraCheckoutParams']);
         add_action('woocommerce_checkout_update_order_review', [$this, 'getUpdatedPhoneNumberOnCheckout']);
 
-        if ($this->isCronjobEnabled()) {
+        if ($this->isCronjobEnabled() && rand(0,20) === 1) {
             add_action('admin_footer', [$this, 'addCronJobTriggerScript']);
         }
 
@@ -641,17 +641,22 @@ class TamaraCheckout extends Container implements WPPluginInterface
             'post_type' => 'shop_order',
             'post_status' => $tamaraCapturePaymentStatus,
             'date_query' => [
+                'before' => date('Y-m-d', strtotime('-14 days')),
                 'after' => date('Y-m-d', strtotime('-180 days')),
                 'inclusive' => true,
             ],
             'meta_query' => [
                 'relation' => 'AND',
                 [
-                    'key' => 'tamara_order_id',
+                    'key' => '_tamara_order_id',
                     'compare' => 'EXISTS',
                 ],
                 [
-                    'key' => 'capture_id',
+                    'key' => '_tamara_capture_id',
+                    'compare' => 'NOT EXISTS',
+                ],
+				[
+                    'key' => '_tamara_force_capture_checked',
                     'compare' => 'NOT EXISTS',
                 ],
             ],
@@ -662,9 +667,14 @@ class TamaraCheckout extends Container implements WPPluginInterface
         $wcOrderIds = $customerOrdersQuery->posts;
 
         foreach ($wcOrderIds as $wcOrderId) {
+			update_post_meta($wcOrderId, '_tamara_force_capture_checked', 1);
+
             if (static::TAMARA_FULLY_CAPTURED_STATUS === TamaraCheckout::getInstance()->getTamaraOrderStatus($wcOrderId)) {
                 $wcOrder = wc_get_order($wcOrderId);
                 $wcOrder->add_order_note(__('Tamara - The payment has been captured successfully.', $this->textDomain));
+				$tamaraCaptureId = $this->getWCTamaraGatewayService()->getTamaraCaptureId($wcOrderId);
+				update_post_meta($wcOrderId, '_tamara_capture_id', $tamaraCaptureId);
+
                 return true;
             } else {
                 $this->getWCTamaraGatewayService()->captureWcOrder($wcOrderId);
@@ -684,6 +694,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
             'post_type' => 'shop_order',
             'post_status' => $toAuthoriseStatus,
             'date_query' => [
+                'before' => date('Y-m-d', strtotime('-3 hours')),
                 'after' => date('Y-m-d', strtotime('-180 days')),
                 'inclusive' => true,
             ],
@@ -694,7 +705,11 @@ class TamaraCheckout extends Container implements WPPluginInterface
                     'compare' => 'EXISTS',
                 ],
                 [
-                    'key' => 'tamara_order_id',
+                    'key' => '_tamara_order_id',
+                    'compare' => 'NOT EXISTS',
+                ],
+				[
+                    'key' => '_tamara_force_authorise_checked',
                     'compare' => 'NOT EXISTS',
                 ],
             ],
@@ -705,6 +720,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
         $wcOrderIds = $customerOrdersQuery->posts;
 
         foreach ($wcOrderIds as $wcOrderId) {
+			update_post_meta($wcOrderId, '_tamara_force_authorise_checked', 1);
             if (!$this->isOrderAuthorised($wcOrderId)) {
                 $this->authoriseOrder($wcOrderId);
             }
