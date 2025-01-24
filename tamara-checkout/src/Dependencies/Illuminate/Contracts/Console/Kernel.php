@@ -5,6 +5,13 @@ namespace Tamara\Wp\Plugin\Dependencies\Illuminate\Contracts\Console;
 interface Kernel
 {
     /**
+     * Bootstrap the application for artisan commands.
+     *
+     * @return void
+     */
+    public function bootstrap();
+
+    /**
      * Handle an incoming console command.
      *
      * @param  \Symfony\Component\Console\Input\InputInterface  $input

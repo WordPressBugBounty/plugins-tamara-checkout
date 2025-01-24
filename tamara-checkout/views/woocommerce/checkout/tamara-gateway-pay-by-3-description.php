@@ -13,7 +13,7 @@ $totalToCalculate = TamaraCheckout::getInstance()->getTotalToCalculate($cartTota
 
 ?>
 
-<div class="payment_method_tamara-gateway-pay-by-instalments-<?php echo $instalmentPeriod ?>">
+<div class="payment_method_tamara-gateway-pay-by-instalments-<?php echo (int) $instalmentPeriod ?>">
     <div class="tamara-gateway-description">
         <div
             class="tamara-installment-plan-widget"

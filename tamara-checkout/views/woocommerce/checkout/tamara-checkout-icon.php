@@ -12,7 +12,7 @@ if ($siteLocale === 'ar') {
 }
 if (!empty($publicKey)) {
     echo '
-            <img class="tamara-product-widget" style="max-height: 25px; display: inline; 
-            vertical-align: middle; float: none; margin: 0 1rem; cursor: pointer" src="'.$iconHtml.'" alt="Tamara Checkout Icon">
+            <img class="tamara-product-widget" style="max-height: 25px; display: inline;
+            vertical-align: middle; float: none; margin: 0 1rem; cursor: pointer" src="'.esc_attr($iconHtml).'" alt="Tamara Checkout Icon">
     ';
 }

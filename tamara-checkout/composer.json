@@ -1,5 +1,6 @@
 {
   "name": "tamara/tamara-checkout",
+  "version": "1.9.9.4",
   "type": "project",
   "license": "GPL-2.0-or-later",
   "description": "Plugin for checking out using Tamara payment method",
@@ -26,8 +27,8 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require": {
-    "php": ">=7.2.5",
-    "illuminate/container": "~7.30.6",
+    "php": ">=7.3.0",
+    "illuminate/container": "~8.83.0",
     "tamara-solution/php-sdk": "~1.3.4",
     "symfony/http-foundation": "~4.4.43",
     "symfony/options-resolver": "~4.4.37",

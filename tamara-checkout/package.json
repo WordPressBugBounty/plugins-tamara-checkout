@@ -1,6 +1,6 @@
 {
   "name": "tamara_checkout",
-  "version": "1.9.8",
+  "version": "1.9.9.4",
   "description": "Plugin for checking out using Tamara payment method",
   "scripts": {
     "dev": "webpack --watch --mode development",

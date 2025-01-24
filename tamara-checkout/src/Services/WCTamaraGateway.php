@@ -212,6 +212,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
 
         // Invoke a filter to hide Tamara Gateway on checkout
         add_filter('woocommerce_available_payment_gateways', [$this, 'adjustTamaraGatewayOnCheckout'], 9999, 1);
+        add_filter('woocommerce_payment_gateways', [$this, 'adjustTamaraGatewayOnCheckout'], 9999, 1);
 
         // Invoke a filter to update description for Tamara Gateway on checkout
         add_filter('woocommerce_gateway_description', [$this, 'renderPaymentTypeDescription'], 9999, 2);
@@ -320,22 +321,45 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function adjustTamaraGatewayOnCheckout($availableGateways)
     {
-        if (is_checkout()) {
+		if (is_checkout()) {
             $cartTotal = TamaraCheckout::getInstance()->getTotalToCalculate(WC()->cart->total);
             $currentCountryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()];
             $tamaraExcludedProductItems = TamaraCheckout::getInstance()->getExcludedProductIds() ?? null;
             $tamaraExcludedProductCategories = TamaraCheckout::getInstance()->getExcludedProductCategoryIds() ?? null;
-            $cartItemIds = TamaraCheckout::getInstance()->getAllProductIdsInCart();
-            $cartItemCategoryIds = TamaraCheckout::getInstance()->getAllProductCategoryIdsInCart();
-            $tamaraExcludedProductItemsInCart = (count(array_intersect(
+			if (!empty($GLOBALS['wp']->query_vars['order-pay'])) {
+				$order = wc_get_order($GLOBALS['wp']->query_vars['order-pay']);
+				$cartItemIds = [];
+				$cartItemCategoryIds = [];
+				foreach ($order->get_items() as $tmpKey => $line_item) {
+					/** @var \WC_Order_Item_Product $line_item */
+					$cartItemIds[] = $line_item->get_product_id();
+					$cartItemCategoryIds = array_merge($cartItemCategoryIds, wc_get_product_cat_ids($line_item->get_product_id()));
+				}
+			} else {
+				$cartItemIds = TamaraCheckout::getInstance()->getAllProductIdsInCart();
+				$cartItemCategoryIds = TamaraCheckout::getInstance()->getAllProductCategoryIdsInCart();
+			}
+			$tamaraExcludedProductItemsInCart = (count(array_intersect(
                 $cartItemIds, $tamaraExcludedProductItems))) ? true : false;
             $tamaraExcludedProductCategoriesInCart = (count(array_intersect(
                 $cartItemCategoryIds, $tamaraExcludedProductCategories))) ? true : false;
+
+			if ($tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {
+				$availableGateways = array_filter($availableGateways, function($value, $key) {
+					if (strpos($key, 'tamara-gateway') !==false || (!empty($value->id) && strpos($value->id, 'tamara-gateway') !==false)) {
+						return false;
+					}
+
+					return true;
+				}, ARRAY_FILTER_USE_BOTH);
+
+				return $availableGateways;
+			}
+
             $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? WC()->customer->get_billing_phone();
             $getAvailableMethod = $this->isMethodAvailableFromRemote($cartTotal, $customerPhone, $currentCountryCode);
 
-            if (!$getAvailableMethod['isMethodAvailable']
-                || $tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {
+			if (!$getAvailableMethod['isMethodAvailable']) {
                 unset($availableGateways[$this->id]);
             } else {
                 $siteLocale = substr(get_locale(), 0, 2) ?? 'en';
@@ -1143,7 +1167,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
                 'options' => static::TAMARA_POPUP_WIDGET_POSITIONS,
                 'description' => __('Choose a position where you want to display the Tamara Payment Popup Widget on single product page. Or, you can use shortcode with attributes to show it on custom pages
                     e.g. [tamara_show_popup price="99" currency="SAR" language="en"]', $this->textDomain),
-                'default' => 'woocommerce_single_product_summary',
+                'default' => 'woocommerce_before_add_to_cart_form',
             ],
             'cart_popup_widget_disabled' => [
                 'title' => __('Disable Cart Popup Widget', $this->textDomain),

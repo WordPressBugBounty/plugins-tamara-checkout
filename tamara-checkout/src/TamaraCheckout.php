@@ -280,7 +280,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
         add_action('wp_ajax_update-tamara-checkout-params', [$this, 'updateTamaraCheckoutParams']);
         add_action('wp_ajax_nopriv_update-tamara-checkout-params', [$this, 'updateTamaraCheckoutParams']);
 
-        add_action('get_header', [$this, 'overrideWcClearCart'], 8);
+        add_action('wp_loaded', [$this, 'overrideWcClearCart'], 0);
         add_action('wp_loaded', [$this, 'cancelOrder'], 21);
 
         // Add Tamara Note on Order Received page
@@ -670,9 +670,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
 			update_post_meta($wcOrderId, '_tamara_force_capture_checked', 1);
 
             if (static::TAMARA_FULLY_CAPTURED_STATUS === TamaraCheckout::getInstance()->getTamaraOrderStatus($wcOrderId)) {
-                $wcOrder = wc_get_order($wcOrderId);
-                $wcOrder->add_order_note(__('Tamara - The payment has been captured successfully.', $this->textDomain));
-				$tamaraCaptureId = $this->getWCTamaraGatewayService()->getTamaraCaptureId($wcOrderId);
+                $tamaraCaptureId = $this->getWCTamaraGatewayService()->getTamaraCaptureId($wcOrderId);
 				update_post_meta($wcOrderId, '_tamara_capture_id', $tamaraCaptureId);
 
                 return true;
@@ -1500,10 +1498,21 @@ class TamaraCheckout extends Container implements WPPluginInterface
         $dataPrice = !empty($price) ? $price : $getPrice;
         $dataCurrency = !empty($currency) ? $currency : get_woocommerce_currency();
         $dataLanguage = !empty($language) ? $language : substr(get_locale(), 0, 2);
+
+
+		$tamaraExcludedProductItems = TamaraCheckout::getInstance()->getExcludedProductIds() ?? null;
+		$tamaraExcludedProductCategories = TamaraCheckout::getInstance()->getExcludedProductCategoryIds() ?? null;
+		$cartItemIds = TamaraCheckout::getInstance()->getAllProductIdsInCart();
+		$cartItemCategoryIds = TamaraCheckout::getInstance()->getAllProductCategoryIdsInCart();
+		$tamaraExcludedProductItemsInCart = (count(array_intersect(
+			$cartItemIds, $tamaraExcludedProductItems))) ? true : false;
+		$tamaraExcludedProductCategoriesInCart = (count(array_intersect(
+			$cartItemCategoryIds, $tamaraExcludedProductCategories))) ? true : false;
+
         if ($this->isCartWidgetPopupDisabled() ||
-            (!empty($this->getDisplayedProductId()) && $this->isExcludedProduct($this->getDisplayedProductId())) ||
-            (!empty($this->getDisplayedProductCategoryIds())
-             && $this->isExcludedProductCategory($this->getDisplayedProductCategoryIds()))) {
+            ($tamaraExcludedProductItemsInCart) ||
+            ($tamaraExcludedProductCategoriesInCart)
+		) {
             return false;
         } else {
             $itemPrice = is_array($dataPrice) ? $this->getAppropriateVariationProductPrice($dataPrice) : $dataPrice;
@@ -2178,26 +2187,17 @@ SCRIPT;
      */
     public function overrideWcClearCart()
     {
-        remove_action('get_header', 'wc_clear_cart_after_payment');
-
-        global $wp;
-        if (!empty($wp->query_vars['order-received'])) {
-            $order_id = absint($wp->query_vars['order-received']);
-            $order_key = isset($_GET['key']) ? wc_clean(wp_unslash($_GET['key'])) : ''; // WPCS: input var ok, CSRF ok.
-            if ($order_id > 0) {
-                $order = wc_get_order($order_id);
-                if ($order && hash_equals($order->get_order_key(), $order_key)) {
-                    WC()->cart->empty_cart();
-                }
-            }
-        }
-        if (WC()->session->order_awaiting_payment > 0) {
+		if (WC()->session->order_awaiting_payment) {
             $order = wc_get_order(WC()->session->order_awaiting_payment);
             if ($order && $order->get_id() > 0) {
                 // If the order has not failed, or is not pending, the order must have gone through.
-                if (!$order->has_status(array('failed', 'pending', 'cancelled'))
-                    && !$this->isTamaraGateway($order->get_payment_method())) {
-                    WC()->cart->empty_cart();
+                if ($this->isTamaraGateway($order->get_payment_method())) {
+
+					if ($order->has_status(array('tamara-p-canceled', 'tamara-p-failed'))) {
+						remove_action('template_redirect', 'wc_clear_cart_after_payment');
+						remove_action('template_redirect', 'wc_clear_cart_after_payment', 20);
+					}
+
                 }
             }
         }

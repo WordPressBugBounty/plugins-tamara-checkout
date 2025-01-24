@@ -9,6 +9,6 @@ $totalToCalculate = TamaraCheckout::getInstance()->getTotalToCalculate($cartTota
 
 ?>
 <div class="tamara-gateway-checkout-description">
-    <tamara-widget type="tamara-summary" inline-type="<?php echo $inlineType ?>" amount="<?php echo $totalToCalculate ?>"></tamara-widget>
+    <tamara-widget type="tamara-summary" inline-type="<?php echo esc_attr($inlineType) ?>" amount="<?php echo esc_attr($totalToCalculate) ?>"></tamara-widget>
     <p class="tamara-gateway-checkout-description__default"><?php echo $defaultDescription ?></p>
 </div>

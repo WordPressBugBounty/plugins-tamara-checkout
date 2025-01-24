@@ -1,10 +1,10 @@
 === Tamara Checkout ===
 Contributors: tamarasolution, npbtrac, kimloile
-Tags: tamara, tamara-checkout, tamara-payment, e-commerce, store, sales, sell, woo, shop, cart, checkout, payments, woocommerce
+Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 6.6
-Requires PHP: 7.2+
-Stable tag: 1.9.8
+Requires PHP: 7.3.0
+Stable tag: 1.9.9.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,19 @@ tamara is the best way to pay for your online shopping.
 For more information about the documentation, user guides and the FAQs, please visit: [our website](https://tamara.co/en/faq.html)
 
 == Changelog ==
+
+= 1.9.9.4 - 2025-01-22 =
+
+Enhancements:
+
+* Fix the security concerns
+* Fix the issue on 'order-pay' for excluded product and category ids
+
+= 1.9.9 - 2024-10-22 =
+
+Enhancements:
+
+* Update the dependencies to remove warnings for PHP 8.1+
 
 = 1.9.8 - 2024-10-21 =
 
