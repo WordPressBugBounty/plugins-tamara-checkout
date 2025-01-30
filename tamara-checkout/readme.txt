@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 6.6
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.4
+Stable tag: 1.9.9.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -80,12 +80,13 @@ For more information about the documentation, user guides and the FAQs, please v
 
 == Changelog ==
 
-= 1.9.9.4 - 2025-01-22 =
+= 1.9.9.5 - 2025-01-30 =
 
 Enhancements:
 
 * Fix the security concerns
 * Fix the issue on 'order-pay' for excluded product and category ids
+* Fix some bugs
 
 = 1.9.9 - 2024-10-22 =
 

@@ -1,6 +1,6 @@
 {
   "name": "tamara/tamara-checkout",
-  "version": "1.9.9.4",
+  "version": "1.9.9.5",
   "type": "project",
   "license": "GPL-2.0-or-later",
   "description": "Plugin for checking out using Tamara payment method",

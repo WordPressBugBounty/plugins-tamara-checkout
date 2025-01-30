@@ -2016,9 +2016,12 @@ SCRIPT;
      */
     public function getAllProductIdsInCart()
     {
-        $allCartItems = WC()->cart->get_cart();
-        $productIds = [];
+		$productIds = [];
+		if (empty(WC()->cart)) {
+			return $productIds;
+		}
 
+        $allCartItems = WC()->cart->get_cart();
         foreach ($allCartItems as $item => $values) {
             $itemId = $values['data']->get_id() ?? null;
             $productIds[] = $itemId;
@@ -2187,7 +2190,7 @@ SCRIPT;
      */
     public function overrideWcClearCart()
     {
-		if (WC()->session->order_awaiting_payment) {
+		if (!empty(WC()->session->order_awaiting_payment)) {
             $order = wc_get_order(WC()->session->order_awaiting_payment);
             if ($order && $order->get_id() > 0) {
                 // If the order has not failed, or is not pending, the order must have gone through.
