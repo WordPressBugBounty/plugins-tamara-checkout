@@ -5,13 +5,13 @@
  * Description: This plugin enables Tamara Buy Now Pay later on your WooCommerce store. With Tamara, you can split your payments – totally interest-free. Accepts payments from Mada, Apple Pay, or Credit Cards.
  * Author:      dev@tamara.co
  * Author URI:  https://tamara.co/
- * Version:     1.9.9.5
+ * Version:     1.9.9.6
  * Text Domain: tamara
  */
 
 use Tamara\Wp\Plugin\TamaraCheckout;
 
-defined('TAMARA_CHECKOUT_VERSION') || define('TAMARA_CHECKOUT_VERSION', '1.9.9.5');
+defined('TAMARA_CHECKOUT_VERSION') || define('TAMARA_CHECKOUT_VERSION', '1.9.9.6');
 
 // Use autoload if it isn't loaded before
 // phpcs:ignore PSR2.ControlStructures.ControlStructureSpacing.SpacingAfterOpenBrace

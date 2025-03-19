@@ -2,9 +2,9 @@
 Contributors: tamarasolution, npbtrac, kimloile
 Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
-Tested up to: 6.6
+Tested up to: 6.7
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.5
+Stable tag: 1.9.9.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,12 @@ tamara is the best way to pay for your online shopping.
 For more information about the documentation, user guides and the FAQs, please visit: [our website](https://tamara.co/en/faq.html)
 
 == Changelog ==
+
+= 1.9.9.6 - 2025-03-12 =
+
+Enhancements:
+
+* Update the single checkout widget
 
 = 1.9.9.5 - 2025-01-30 =
 

@@ -46,7 +46,7 @@ class WCTamaraGatewayCheckout extends WCTamaraGateway
                 [
                     'cartTotal' => $cartTotal,
                     'defaultDescription' => $this->populateTamaraDefaultDescription(),
-                    'inlineType' => TamaraCheckout::TAMARA_INLINE_TYPE_CART_WIDGET_INT,
+                    'inlineType' => TamaraCheckout::TAMARA_INLINE_TYPE_SINGLE_CHECKOUT_WIDGET,
                 ]);
         }
 

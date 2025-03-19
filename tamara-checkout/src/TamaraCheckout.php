@@ -74,6 +74,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
         TAMARA_INLINE_TYPE_KNOWMORE_WIDGET_INT = 1,
         TAMARA_INLINE_TYPE_PRODUCT_WIDGET_INT = 2,
         TAMARA_INLINE_TYPE_CART_WIDGET_INT = 3,
+        TAMARA_INLINE_TYPE_SINGLE_CHECKOUT_WIDGET = 6,
         DOWN_PAYMENT = 'down_payment',
         INSTALMENT = 'instalment',
         PAY_LATER_PDP_MAX_AMOUNT = 200;
@@ -1453,7 +1454,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function tamaraProductPopupWidget($attributes)
     {
-        extract(shortcode_atts(array(
+		extract(shortcode_atts(array(
             'price' => '',
             'currency' => '',
             'language' => '',
@@ -1467,7 +1468,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
              && $this->isExcludedProductCategory($this->getDisplayedProductCategoryIds()))) {
             return false;
         } else {
-            $itemPrice = is_array($dataPrice) ? $this->getAppropriateVariationProductPrice($dataPrice) : $dataPrice;
+			$itemPrice = is_array($dataPrice) ? $this->getAppropriateVariationProductPrice($dataPrice) : $dataPrice;
             return $this->getServiceView()->render('views/woocommerce/checkout/tamara-popup-widget',
                 [
                     'dataPrice' => $itemPrice ?? 0,
@@ -2169,6 +2170,7 @@ SCRIPT;
      */
     public function getAppropriateVariationProductPrice($variationPriceArr)
     {
+		return array_values($variationPriceArr)[0] ?? null;
         foreach ($variationPriceArr as $item => $variationPrice) {
             if (($this->getWCTamaraGatewayService()->populateMinLimit() <= $variationPrice
                  && $this->getWCTamaraGatewayService()->populateMaxLimit() >= $variationPrice)
