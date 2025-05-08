@@ -4,64 +4,44 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.6
+Stable tag: 1.9.9.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 With Tamara Buy Now Pay Later, you can split your payments – totally interest-free. Accepts payments from Mada, Apple Pay, or Credit Cards.
 
-== Description ==
+== Tamara for WooCommerce ==
 
-[Tamara](https://tamara.co) is the best way to pay for your online shopping. advantage icon. Buy now and pay later. No immediate payment needed.
+Attract customers, boost sales, and increase conversions with Tamara's flexible payment solutions!
 
-Tamara is a solution for brick and mortar and e-commerce players in the GCC. We are a regional startup with a bold vision and a global experienced team.
+Upgrade your WooCommerce store with Tamara's seamless Buy Now Pay Later (BNPL) solutions. With Tamara, you can offer your customers the flexibility to split their purchases in up to 4 easy payments – no late fees and Sharia-compliant.
 
-We provide a Buy Now Pay Later solution in Saudi Arabia and the UAE. Our solution solves local challenges and provides merchants and their customers with significant value.
+Our WooCommerce payment gateway integration is designed to optimize your ecommerce checkout solution, helping you reduce payment risks, improving your cash flow by receiving full payment upfront, and accessing millions of Tamara users across the GCC region.
 
-The plugin integrates with the merchant's checkout. It tackles cash on delivery challenges and increases order frequency, average order size and conversion. It also provides consumers with an exceptional checkout experience.
+### Features:
+_Flexible payments for your customers. Full up-front payments for you._
+* **Flexible Payment Optionn:** Allow your customers to split payments with our BNPL solutions, supported by a reliable WooCommerce payment gateway. Customers can split payments into 2, 3 and 4 instalments or pay in full.
+* **Seamless Payment Gateway Integration:** Quick and easy WooCommerce payment gateway setup with a user-friendly experience.
+* **Risk-Free Transactions:** Tamara assumes full fraud and credit risks.
 
-### FOR MERCHANTS
-#### Your customers want to buy now and pay later!
-Customers enjoy a flexible payment solution to buy the product they love. No hidden fees. No risk.
+### Benefits to Merchants:
+_Increase your sales and improve customer satisfaction all with one smart and seamless shopping solution._
+* **Boost Conversions and Average Order Value:** Make checkout smoother and drive bigger purchases with a trusted ecommerce checkout solution.
+* **Receive Full Payments Upfront:** Improve your cash flow while giving customers the flexibility to pay over time.
+* **Reduce Costs and COD Issues:** Cut customer acquisition costs, minimize refunds, and eliminate cash-on-delivery risks.
+* **Access a Wider Customer Base:** Tap into Tamara’s growing network of users.
 
-#### Why tamara?
-Unleash your store’s potential by enabling ​Pay Later ​with tamara!
+Tamara is more than just a payment gateway - it's the ecommerce checkout solution to elevate your business.
+### How to Get Started?
+* Installation Guide: [Tamara WooCommerce Installation](https://docs.tamara.co/docs/woo-installation)
+* Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
-* Increase sales and average order value.
-* Tackle cash on delivery.
-* Reduce fraud and non-payment risks.
-
-#### Benefits to Merchants
-
-* More sales: Higher average order value, conversion, repeat purchases and less card transaction declined.
-* Access to quality customers: tamara directs new customers to merchants through its network.
-* No collections: tamara collects from the customers, not merchants.
-* No fraud and credit risk: tamara assumes 100% of payment risk on behalf of the merchant.
-* No COD: In case merchants offer it, we'll take this headache away from them and provide a better alternative.
-* Logistics: Freedom to select the top couriers (e.g. DHL) as there is no restriction on specific couriers who collect cash.
-
-### FOR SHOPPERS
-#### Pay later with tamara
-Buy online and pay later after your goods are delivered. No hidden fees.
-
-#### What is tamara?
-tamara is the best way to pay for your online shopping.
-
-* Buy now and pay later
-* No hidden fees
-* Smooth process
-
-#### Benefits to Customers
-
-* Convenient and smooth checkout experience: No friction of having customers to pay upfront.
-* In-store experience for e-commerce: Customers can try the product at home without having to pay upfront.
-* Payment flexibility and better money management: Pay later in 30 days or in installments.
-* Trust: customers can purchase the products they love with peace of mind. No credit/debit card details needed upfront, no chasing logistics companies for delivery.
 
 == Installation ==
 
 = Minimum Requirements =
 
+* PHP 7.3 or greater
 * Wordpress 5.2 or greater is recommended
 * Woocommerce 4.0 or greater is recommended
 
@@ -70,13 +50,9 @@ tamara is the best way to pay for your online shopping.
 * Please note that the plugin can only be activated when Woocommerce is active.
 * After the plugin is activated, there is an option to Enable/Disable the plugin in **Woocommerce => Settings => Payments => Tamara Gateway Settings**
 
-* You can find out more how to install and use the plugin with our user guides documentation.
-
-== Frequently Asked Questions ==
-
-= Where can I find Tamara Checkout documentation and user guides? =
-
-For more information about the documentation, user guides and the FAQs, please visit: [our website](https://tamara.co/en/faq.html)
+You can find out more how to install and use the plugin with our user guides documentation.
+* Installation Guide: [Tamara WooCommerce Installation](https://docs.tamara.co/docs/woo-installation)
+* Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
 
