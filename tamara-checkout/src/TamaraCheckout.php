@@ -260,9 +260,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
         add_action('wp_head', [$this, 'tamaraCheckoutParams']);
         add_action('woocommerce_checkout_update_order_review', [$this, 'getUpdatedPhoneNumberOnCheckout']);
 
-        if ($this->isCronjobEnabled() && rand(0,20) === 1) {
-            add_action('admin_footer', [$this, 'addCronJobTriggerScript']);
-        }
+        add_action('admin_footer', [$this, 'addCronJobTriggerScript']);
 
         add_shortcode('tamara_show_popup', [$this, 'tamaraProductPopupWidget']);
         add_shortcode('tamara_show_cart_popup', [$this, 'tamaraCartPopupWidget']);
@@ -693,14 +691,14 @@ class TamaraCheckout extends Container implements WPPluginInterface
             'post_type' => 'shop_order',
             'post_status' => $toAuthoriseStatus,
             'date_query' => [
-                'before' => date('Y-m-d', strtotime('-3 hours')),
+                'before' => date('Y-m-d', strtotime('-1 second')),
                 'after' => date('Y-m-d', strtotime('-180 days')),
                 'inclusive' => true,
             ],
             'meta_query' => [
                 'relation' => 'AND',
                 [
-                    'key' => 'tamara_checkout_session_id',
+                    'key' => '_tamara_checkout_session_id',
                     'compare' => 'EXISTS',
                 ],
                 [
@@ -1779,19 +1777,25 @@ class TamaraCheckout extends Container implements WPPluginInterface
         $ajaxCronjobUrl = esc_attr(add_query_arg([
             'action' => 'tamara_perform_cron',
         ], admin_url('admin-ajax.php')));
+
+		$sectionSlug = esc_attr(isset($_GET['section']) ? $_GET['section'] : '');
         echo <<<SCRIPT
     <script type="text/javascript">
         var data = {
             'action': 'tamara_perform_cron'
         };
-        fetch('$ajaxCronjobUrl', {
-            credentials: 'same-origin',
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            // body: JSON.stringify(data),
-        });
+		var sectionSlug = "$sectionSlug";
+		var randomNumber = Math.floor(Math.random() * 20) + 1;
+		if (randomNumber === 1 || (typeof pagenow !== 'undefined' && pagenow === 'woocommerce_page_wc-settings' && sectionSlug === 'tamara-gateway')) {
+			fetch("$ajaxCronjobUrl", {
+				credentials: 'same-origin',
+				method: 'GET',
+				// body: JSON.stringify(data),
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+		}
     </script>
 SCRIPT;
     }

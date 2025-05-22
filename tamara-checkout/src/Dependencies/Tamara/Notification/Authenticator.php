@@ -62,6 +62,7 @@ class Authenticator
      */
     protected function decode(string $token)
     {
+		JWT::$leeway = 180;
         return JWT::decode($token, $this->tokenKey, ['HS256']);
     }
 }
