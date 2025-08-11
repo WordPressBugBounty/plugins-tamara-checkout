@@ -15,8 +15,8 @@ class Merchant
     public static function fromArray(array $data): Merchant
     {
         $self = new self();
-        $self->setSingleCheckoutEnabled($data[self::SINGLE_CHECKOUT_ENABLED]);
-        $self->setPublicKey($data[self::PUBLIC_KEY]);
+        $self->setSingleCheckoutEnabled(isset($data[self::SINGLE_CHECKOUT_ENABLED]) ? (bool) $data[self::SINGLE_CHECKOUT_ENABLED] : false);
+        $self->setPublicKey(isset($data[self::PUBLIC_KEY]) ? (string) $data[self::PUBLIC_KEY] : '');
 
         return $self;
     }

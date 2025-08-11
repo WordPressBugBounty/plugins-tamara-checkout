@@ -5,13 +5,13 @@
  * Description: With Tamara Buy Now Pay Later, you can split your payments – totally interest-free. Accepts payments from Mada, Apple Pay, or Credit Cards.
  * Author:      dev@tamara.co
  * Author URI:  https://tamara.co/
- * Version:     1.9.9.9
+ * Version:     1.9.9.10
  * Text Domain: tamara
  */
 
 use Tamara\Wp\Plugin\TamaraCheckout;
 
-defined('TAMARA_CHECKOUT_VERSION') || define('TAMARA_CHECKOUT_VERSION', '1.9.9.9');
+defined('TAMARA_CHECKOUT_VERSION') || define('TAMARA_CHECKOUT_VERSION', '1.9.9.10');
 
 // Use autoload if it isn't loaded before
 // phpcs:ignore PSR2.ControlStructures.ControlStructureSpacing.SpacingAfterOpenBrace

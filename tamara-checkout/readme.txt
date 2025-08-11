@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.9
+Stable tag: 1.9.9.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,12 @@ You can find out more how to install and use the plugin with our user guides doc
 * Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
+
+= 1.9.9.10 - 2025-08-11 =
+
+Enhancements:
+
+* Fix some minor bugs
 
 = 1.9.9.6 - 2025-03-12 =
 
