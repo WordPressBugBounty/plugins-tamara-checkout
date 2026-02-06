@@ -2,9 +2,9 @@
 Contributors: tamarasolution, npbtrac, kimloile
 Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.10
+Stable tag: 1.9.9.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 

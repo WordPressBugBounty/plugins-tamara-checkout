@@ -443,7 +443,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
             TamaraCheckout::getInstance()->logMessage(sprintf("Tamara Checkout Session Response Data: %s", print_r($checkoutResponse, true)));
         } catch (Exception $tamaraCheckoutException) {
             if (!TamaraCheckout::isRestRequest()) {
-                $errorMessage = __("Tamara Service unavailable! Please try again later.", $this->textDomain);
+                $errorMessage = __("Tamara Service unavailable! Please try again later.", 'tamara-checkout');
                 if (function_exists('wc_add_notice')) {
                     wc_add_notice($errorMessage, 'error');
                 }
@@ -562,7 +562,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $order->setPaymentType($paymentType);
         $order->setInstalments($instalmentPeriod);
         $order->setPlatform(sprintf('WordPress %s, WooCommerce %s, Tamara Checkout %s', $GLOBALS['wp_version'], $GLOBALS['woocommerce']->version, TamaraCheckout::getInstance()->version));
-        $order->setDescription(__('Use Tamara Gateway with WooCommerce', $this->textDomain));
+        $order->setDescription(__('Use Tamara Gateway with WooCommerce', 'tamara-checkout'));
         $order->setTaxAmount(new Money(MoneyHelper::formatNumber($wcOrder->get_total_tax()), $order->getCurrency()));
         $order->setShippingAmount(new Money(MoneyHelper::formatNumber($wcOrder->get_shipping_total()), $order->getCurrency()));
         $order->setDiscount(new Discount($usedCouponsStr, new Money(MoneyHelper::formatNumber($wcOrder->get_discount_total()), $order->getCurrency())));
@@ -930,32 +930,32 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         $form_fields = [
             'enabled' => [
-                'title' => __('Enable/Disable', $this->textDomain),
-                'label' => __('Enable Tamara Gateway', $this->textDomain),
+                'title' => __('Enable/Disable', 'tamara-checkout'),
+                'label' => __('Enable Tamara Gateway', 'tamara-checkout'),
                 'type' => 'checkbox',
             ],
             'tamara_settings_help_texts' => [
-                'title' => __('Tamara Settings Help Texts', $this->textDomain),
+                'title' => __('Tamara Settings Help Texts', 'tamara-checkout'),
                 'type' => 'title',
                 'description' =>
                     '<div class="tamara-settings-help-texts-description">
                         <p>'.__('Here you can browse some help texts and find solutions for common issues with our plugin.',
-                        $this->textDomain).'</p>
+                        'tamara-checkout').'</p>
                         <ul>
                             <li><p class="tamara-highlight">'.__('If there is any issue with your API URL, API Token,
-                            Notification Key or Public Key please contact Tamara Team for support at <a href="mailto:merchant.support@tamara.co">merchant.support@tamara.co</a>', $this->textDomain).'</p></li>
+                            Notification Key or Public Key please contact Tamara Team for support at <a href="mailto:merchant.support@tamara.co">merchant.support@tamara.co</a>', 'tamara-checkout').'</p></li>
                         </ul>
                     </div>'
                     .$this->renderHelpTextsHtml(),
             ],
             'tamara_confidential_config' => [
-                'title' => __('Confidential Configuration', $this->textDomain),
+                'title' => __('Confidential Configuration', 'tamara-checkout'),
                 'type' => 'title',
                 'description' => '<p>Update Your Confidential Configuration Received From Tamara.</p>',
             ],
             'environment' => [
-                'title' => __('Tamara Working Mode', $this->textDomain),
-                'label' => __('Choose Tamara Working Mode', $this->textDomain),
+                'title' => __('Tamara Working Mode', 'tamara-checkout'),
+                'label' => __('Choose Tamara Working Mode', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => static::ENVIRONMENT_LIVE_MODE,
                 'options' => [
@@ -963,12 +963,12 @@ class WCTamaraGateway extends WC_Payment_Gateway
                     static::ENVIRONMENT_SANDBOX_MODE => 'Sandbox Mode',
                 ],
                 'description' => __('This setting specifies whether you will process live transactions, or whether you will process simulated transactions using the Tamara Sandbox.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'live_api_url' => [
-                'title' => __('Live API URL', $this->textDomain),
+                'title' => __('Live API URL', 'tamara-checkout'),
                 'type' => 'text',
-                'description' => __('The Tamara Live API URL <span class="tamara-highlight">(https://api.tamara.co)</span>', $this->textDomain),
+                'description' => __('The Tamara Live API URL <span class="tamara-highlight">(https://api.tamara.co)</span>', 'tamara-checkout'),
                 'default' => static::LIVE_API_URL,
                 'custom_attributes' => [
                     'value' => static::LIVE_API_URL,
@@ -976,33 +976,33 @@ class WCTamaraGateway extends WC_Payment_Gateway
                 ],
 			],
             'live_api_token' => [
-                'title' => __('Live API Token (Merchant Token)', $this->textDomain),
+                'title' => __('Live API Token (Merchant Token)', 'tamara-checkout'),
                 'type' => 'textarea',
 				'css' => 'min-height: 200px;',
-                'description' => __('Get your API token from Tamara.', $this->textDomain),
+                'description' => __('Get your API token from Tamara.', 'tamara-checkout'),
 				'required' => 'required',
             ],
             'live_notification_token' => [
-                'title' => __('Live Notification Key', $this->textDomain),
+                'title' => __('Live Notification Key', 'tamara-checkout'),
                 'type' => 'text',
-                'description' => __('Get your Notification key from Tamara.', $this->textDomain),
+                'description' => __('Get your Notification key from Tamara.', 'tamara-checkout'),
                 'default' => '',
 				'custom_attributes' => [
 					'required' => 'required',
 				],
             ],
             'live_public_key' => [
-                'title' => __('Live Public Key', $this->textDomain),
+                'title' => __('Live Public Key', 'tamara-checkout'),
                 'type' => 'text',
-                'description' => __('Get your Public key from Tamara.', $this->textDomain),
+                'description' => __('Get your Public key from Tamara.', 'tamara-checkout'),
 				'custom_attributes' => [
 					'required' => 'required',
 				],
             ],
             'sandbox_api_url' => [
-                'title' => __('Sandbox API URL', $this->textDomain),
+                'title' => __('Sandbox API URL', 'tamara-checkout'),
                 'type' => 'text',
-                'description' => __('The Tamara Sandbox API URL <span class="tamara-highlight">(https://api-sandbox.tamara.co)</span>', $this->textDomain),
+                'description' => __('The Tamara Sandbox API URL <span class="tamara-highlight">(https://api-sandbox.tamara.co)</span>', 'tamara-checkout'),
                 'default' => static::SANDBOX_API_URL,
                 'custom_attributes' => [
                     'value' => static::SANDBOX_API_URL,
@@ -1010,206 +1010,206 @@ class WCTamaraGateway extends WC_Payment_Gateway
                 ],
             ],
             'sandbox_api_token' => [
-                'title' => __('Sandbox API Token (Merchant Token)', $this->textDomain),
+                'title' => __('Sandbox API Token (Merchant Token)', 'tamara-checkout'),
                 'type' => 'textarea',
 				'css' => 'min-height: 200px;',
-                'description' => __('Get your API token for testing from Tamara.', $this->textDomain),
+                'description' => __('Get your API token for testing from Tamara.', 'tamara-checkout'),
                 'required' => 'required',
             ],
             'sandbox_notification_token' => [
-                'title' => __('Sandbox Notification Key', $this->textDomain),
+                'title' => __('Sandbox Notification Key', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => __('Get your Notification key for testing from Tamara.',
-                    $this->textDomain),
+                    'tamara-checkout'),
 				'custom_attributes' => [
                     'required' => 'required',
                 ],
             ],
             'sandbox_public_key' => [
-                'title' => __('Sandbox Public Key', $this->textDomain),
+                'title' => __('Sandbox Public Key', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => __('Get your Public key for testing from Tamara.',
-                    $this->textDomain),
+                    'tamara-checkout'),
 				'custom_attributes' => [
 					'required' => 'required',
 				],
             ],
             'tamara_order_statuses_mapping' => [
-                'title' => __('Order Statuses Mappings', $this->textDomain),
+                'title' => __('Order Statuses Mappings', 'tamara-checkout'),
                 'type' => 'title',
                 'description' => '<p>Mapping status for order according to Tamara action result.</p>
-                <div class="tamara-order-statuses-mappings-manage button-primary">'.__('Manage Order Statuses Mappings', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>',
+                <div class="tamara-order-statuses-mappings-manage button-primary">'.__('Manage Order Statuses Mappings', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>',
             ],
             'tamara_payment_cancel' => [
-                'title' => __('Order status for payment cancelled from Tamara', $this->textDomain),
+                'title' => __('Order status for payment cancelled from Tamara', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-tamara-p-canceled',
                 'options' => wc_get_order_statuses(),
-                'description' => __('Map status for order when the payment is cancelled from Tamara during checkout.', $this->textDomain),
+                'description' => __('Map status for order when the payment is cancelled from Tamara during checkout.', 'tamara-checkout'),
             ],
             'tamara_payment_failure' => [
-                'title' => __('Order status for payment failed from Tamara', $this->textDomain),
+                'title' => __('Order status for payment failed from Tamara', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-tamara-p-failed',
                 'options' => wc_get_order_statuses(),
-                'description' => __('Map status for order when the payment is failed from Tamara during checkout.', $this->textDomain),
+                'description' => __('Map status for order when the payment is failed from Tamara during checkout.', 'tamara-checkout'),
             ],
             'tamara_authorise_done' => [
-                'title' => __('Order status for Authorise success from Tamara', $this->textDomain),
+                'title' => __('Order status for Authorise success from Tamara', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-processing',
                 'options' => wc_get_order_statuses(),
-                'description' => __('Map status for order when the payment is authorised successfully from Tamara.', $this->textDomain),
+                'description' => __('Map status for order when the payment is authorised successfully from Tamara.', 'tamara-checkout'),
             ],
             'tamara_authorise_failure' => [
-                'title' => __('Order status for Authorise failed from Tamara', $this->textDomain),
+                'title' => __('Order status for Authorise failed from Tamara', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-tamara-a-failed',
                 'options' => wc_get_order_statuses(),
-                'description' => __('Map status for order when the payment is failed in authorising from Tamara.', $this->textDomain),
+                'description' => __('Map status for order when the payment is failed in authorising from Tamara.', 'tamara-checkout'),
             ],
             'tamara_capture_failure' => [
-                'title' => __('Order status for Capture failed from Tamara', $this->textDomain),
+                'title' => __('Order status for Capture failed from Tamara', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-tamara-c-failed',
                 'options' => wc_get_order_statuses(),
-                'description' => __('Map status for order when the Capture process is failed.', $this->textDomain),
+                'description' => __('Map status for order when the Capture process is failed.', 'tamara-checkout'),
             ],
             'tamara_order_cancel' => [
-                'title' => __('Order status for cancelling the order from Tamara through Webhook', $this->textDomain),
+                'title' => __('Order status for cancelling the order from Tamara through Webhook', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-tamara-o-canceled',
                 'options' => wc_get_order_statuses(),
                 'description' => __('Map status for order when it is cancelled from Tamara (Order Expired, Order Declined...) through Webhook.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'tamara_order_statuses_trigger' => [
-                'title' => __('Order Statuses to Trigger Tamara Events', $this->textDomain),
+                'title' => __('Order Statuses to Trigger Tamara Events', 'tamara-checkout'),
                 'type' => 'title',
                 'description' => '<p>Update order statuses used to trigger events to Tamara.</p>
-                <div class="tamara-order-statuses-trigger-manage button-primary">'.__('Manage Order Statuses Trigger', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>',
+                <div class="tamara-order-statuses-trigger-manage button-primary">'.__('Manage Order Statuses Trigger', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>',
             ],
             'tamara_cancel_order' => [
-                'title' => __('Order status that trigger Tamara cancel process for an order', $this->textDomain),
+                'title' => __('Order status that trigger Tamara cancel process for an order', 'tamara-checkout'),
                 'type' => 'select',
                 'options' => wc_get_order_statuses()['wc-cancelled'],
                 'description' => __('When you update an order to this status it would connect to Tamara API to trigger the Cancel payment process on Tamara.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'tamara_payment_capture' => [
-                'title' => __('Order status that trigger Tamara capture process for an order', $this->textDomain),
+                'title' => __('Order status that trigger Tamara capture process for an order', 'tamara-checkout'),
                 'type' => 'select',
                 'default' => 'wc-completed',
                 'options' => wc_get_order_statuses(),
-                'description' => __('When you update an order to this status it would connect to Tamara API to trigger the Capture payment process on Tamara.', $this->textDomain),
+                'description' => __('When you update an order to this status it would connect to Tamara API to trigger the Capture payment process on Tamara.', 'tamara-checkout'),
             ],
             'tamara_custom_settings' => [
-                'title' => __('Tamara Custom Settings', $this->textDomain),
+                'title' => __('Tamara Custom Settings', 'tamara-checkout'),
                 'type' => 'title',
-                'description' => __('Configure Tamara Custom Settings', $this->textDomain)
-                                 .'<div class="tamara-custom-settings-manage button-primary">'.__('Show Tamara Custom Settings', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>'
+                'description' => __('Configure Tamara Custom Settings', 'tamara-checkout')
+                                 .'<div class="tamara-custom-settings-manage button-primary">'.__('Show Tamara Custom Settings', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>'
             ],
             'excluded_products' => [
-                'title' => __('Excluded Product Ids', $this->textDomain),
+                'title' => __('Excluded Product Ids', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => __('Enter the product ids that you want to exclude from using Tamara to checkout
-                (These ids are separated by commas e.g. 101, 205).', $this->textDomain),
+                (These ids are separated by commas e.g. 101, 205).', 'tamara-checkout'),
                 'default' => null,
             ],
             'excluded_product_categories' => [
-                'title' => __('Excluded Product Category Ids', $this->textDomain),
+                'title' => __('Excluded Product Category Ids', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => __('Enter the product category ids that you want to exclude from using Tamara to checkout
-                (These ids are separated by commas e.g. 26, 104).', $this->textDomain),
+                (These ids are separated by commas e.g. 26, 104).', 'tamara-checkout'),
                 'default' => null,
             ],
             'beautify_merchant_urls' => [
-                'title' => __('Enable Beautiful Merchant Urls', $this->textDomain),
+                'title' => __('Enable Beautiful Merchant Urls', 'tamara-checkout'),
                 'type' => 'checkbox',
                 'description' => __('In you tick on this setting, the urls for handling webhook will be beautified. After enabling this, please go to "Dashboard => Settings => Permalinks" and click on "Save Changes" to take effect.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'tamara_general_settings' => [
-                'title' => __('Tamara Advanced Settings', $this->textDomain),
+                'title' => __('Tamara Advanced Settings', 'tamara-checkout'),
                 'type' => 'title',
                 'description' => __('Configure Tamara Advanced Settings <br>
                                 <p class="tamara-highlight">Please read the descriptions of these settings carefully before making a change
                                 or please contact Tamara Team for more details.</p>'
-                        , $this->textDomain)
-                 .'<div class="tamara-advanced-settings-manage button-primary">'.__('Show Tamara Advanced Settings', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>'
+                        , 'tamara-checkout')
+                 .'<div class="tamara-advanced-settings-manage button-primary">'.__('Show Tamara Advanced Settings', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>'
             ],
             'crobjob_enabled' => [
-                'title' => __('Enable Cron Job', $this->textDomain),
+                'title' => __('Enable Cron Job', 'tamara-checkout'),
                 'type' => 'checkbox',
                 'description' => __('In you tick on this setting, Tamara will use a cron-job to find all completed orders that has not been verified but not authorised or not captured within 180 days and force them to be authorised or captured. It fires an asynchronous call on Admin request to perform this action.',
-                    $this->textDomain),
+                    'tamara-checkout'),
                 'default' => 'yes',
             ],
             'force_billing_phone' => [
-                'title' => __('Force Enable Billing Phone', $this->textDomain),
-                'label' => __('Enable Billing Phone Field', $this->textDomain),
+                'title' => __('Force Enable Billing Phone', 'tamara-checkout'),
+                'label' => __('Enable Billing Phone Field', 'tamara-checkout'),
                 'default' => 'yes',
                 'type' => 'checkbox',
                 'description' => __('In you tick on this setting, the billing phone field will be forced to display on checkout screen, which is required to use for Tamara checkout.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'popup_widget_disabled' => [
-                'title' => __('Disable Single Product Details Popup (PDP) Widget', $this->textDomain),
-                'label' => __('Disable PDP Widget on Single Product Page', $this->textDomain),
+                'title' => __('Disable Single Product Details Popup (PDP) Widget', 'tamara-checkout'),
+                'label' => __('Disable PDP Widget on Single Product Page', 'tamara-checkout'),
                 'default' => 'no',
                 'type' => 'checkbox',
                 'description' => __('In you tick on this setting, the PDP widget will be hidden on the single product page.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'popup_widget_position' => [
-                'title' => __('PDP Widget Position', $this->textDomain),
+                'title' => __('PDP Widget Position', 'tamara-checkout'),
                 'type' => 'select',
                 'options' => static::TAMARA_POPUP_WIDGET_POSITIONS,
                 'description' => __('Choose a position where you want to display the Tamara Payment Popup Widget on single product page. Or, you can use shortcode with attributes to show it on custom pages
-                    e.g. [tamara_show_popup price="99" currency="SAR" language="en"]', $this->textDomain),
+                    e.g. [tamara_show_popup price="99" currency="SAR" language="en"]', 'tamara-checkout'),
                 'default' => 'woocommerce_before_add_to_cart_form',
             ],
             'cart_popup_widget_disabled' => [
-                'title' => __('Disable Cart Popup Widget', $this->textDomain),
-                'label' => __('Disable Cart Popup Widget', $this->textDomain),
+                'title' => __('Disable Cart Popup Widget', 'tamara-checkout'),
+                'label' => __('Disable Cart Popup Widget', 'tamara-checkout'),
                 'default' => 'no',
                 'type' => 'checkbox',
                 'description' => __('In you tick on this setting, the popup widget will be hidden on the cart page.',
-                    $this->textDomain),
+                    'tamara-checkout'),
             ],
             'cart_popup_widget_position' => [
-                'title' => __('Cart Popup Widget Position', $this->textDomain),
+                'title' => __('Cart Popup Widget Position', 'tamara-checkout'),
                 'type' => 'select',
                 'options' => static::TAMARA_CART_POPUP_WIDGET_POSITIONS,
-                'description' => __('Choose a position where you want to display the Tamara Payment Popup Widget on cart page.', $this->textDomain),
+                'description' => __('Choose a position where you want to display the Tamara Payment Popup Widget on cart page.', 'tamara-checkout'),
                 'default' => 'woocommerce_proceed_to_checkout',
             ],
             'webhook_enabled' => [
-                'title' => __('Enable Webhook', $this->textDomain),
+                'title' => __('Enable Webhook', 'tamara-checkout'),
                 'type' => 'checkbox',
                 'description' => __('In you tick on this setting, Tamara will use the webhook to handle the Order Declined and Order Expired.',
-                    $this->textDomain)
+                    'tamara-checkout')
                 .'<p><strong>Webhook ID: </strong>'.$this->getWebhookId().'</p>'
             ],
             'cancel_url' => [
-                'title' => __('Tamara Payment Cancel Url', $this->textDomain),
+                'title' => __('Tamara Payment Cancel Url', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => __('Enter the custom CANCEL url for customers to be redirected to after PAYMENT is CANCELLED (leave it blank to use the default one). You can use action `after_tamara_cancel` to handle further actions.',
-                    $this->textDomain),
+                    'tamara-checkout'),
                 'default' => null,
             ],
             'failure_url' => [
-                'title' => __('Tamara Payment Failure Url', $this->textDomain),
+                'title' => __('Tamara Payment Failure Url', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => __('Enter the custom FAILURE url for customers to be redirected to after PAYMENT is FAILED (leave it blank to use the default one). You can use action `after_tamara_failure` to handle further actions.',
-                    $this->textDomain),
+                    'tamara-checkout'),
                 'default' => null,
             ],
             'debug_info' => [
-                'title' => __('Debug Info', $this->textDomain),
+                'title' => __('Debug Info', 'tamara-checkout'),
                 'type' => 'title',
                 'description' =>
-                    '<div class="debug-info-manage button-primary" >'.__('Show Debug Info', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>'
+                    '<div class="debug-info-manage button-primary" >'.__('Show Debug Info', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>'
             ],
             'debug_info_text' => [
                 'type' => 'text',
@@ -1218,21 +1218,21 @@ class WCTamaraGateway extends WC_Payment_Gateway
                     '<table class="tamara-debug-info-table">'.'<tr><td>'.sprintf('<strong>PHP Version:</strong> %s', PHP_VERSION).'</td></tr>'
                     .'<tr><td>'.sprintf('<strong>PHP loaded extension:</strong> %s', implode(', ', get_loaded_extensions())).'</td></tr>'
                     .'<tr><td><h4>Default Merchant URLs:</h4></td></tr>'
-                    .'<tr><td><ul><li>'.__('Tamara Success URL: ', $this->textDomain).('Default <strong>WooCommerce Order Received</strong> url is used.').'</li>'
-                    .'<li>'.__('Tamara Cancel URL: ', $this->textDomain).($this->getTamaraCancelUrl() ?: 'N/A').'</li>'
-                    .'<li>'.__('Tamara Failure URL: ', $this->textDomain).($this->getTamaraFailureUrl() ?: 'N/A').'</li>'
-                    .'<li>'.__('Tamara Notification URL: ', $this->textDomain).($this->getTamaraIpnUrl() ?: 'N/A').'</li>'
-                    .'<li>'.__('Tamara Webhook URL: ', $this->textDomain).($this->getTamaraWebhookUrl() ?: 'N/A').'</li></ul></td></tr>'.'</table>'
+                    .'<tr><td><ul><li>'.__('Tamara Success URL: ', 'tamara-checkout').('Default <strong>WooCommerce Order Received</strong> url is used.').'</li>'
+                    .'<li>'.__('Tamara Cancel URL: ', 'tamara-checkout').($this->getTamaraCancelUrl() ?: 'N/A').'</li>'
+                    .'<li>'.__('Tamara Failure URL: ', 'tamara-checkout').($this->getTamaraFailureUrl() ?: 'N/A').'</li>'
+                    .'<li>'.__('Tamara Notification URL: ', 'tamara-checkout').($this->getTamaraIpnUrl() ?: 'N/A').'</li>'
+                    .'<li>'.__('Tamara Webhook URL: ', 'tamara-checkout').($this->getTamaraWebhookUrl() ?: 'N/A').'</li></ul></td></tr>'.'</table>'
             ],
             'custom_log_message_enabled' => [
-                'title' => __('Enable Tamara Custom Log Message', $this->textDomain),
+                'title' => __('Enable Tamara Custom Log Message', 'tamara-checkout'),
                 'type' => 'checkbox',
                 'description' =>
                     __('In you tick on this setting, all the message logs will be written and saved to the Tamara custom log file in your upload directory.
-                     The message log download link will be <strong>available below</strong>,  after you <strong>enable this setting.</strong>', $this->textDomain),
+                     The message log download link will be <strong>available below</strong>,  after you <strong>enable this setting.</strong>', 'tamara-checkout'),
             ],
             'custom_log_message' => [
-                'title' => __('Tamara Custom Log Message', $this->textDomain),
+                'title' => __('Tamara Custom Log Message', 'tamara-checkout'),
                 'type' => 'text',
                 'description' => $this->prepareDebugLogDownloadLink(),
             ],
@@ -1278,7 +1278,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
     public function tamaraCapturePayment($wcOrderId, $statusFrom, $statusTo, $wcOrder)
     {
         if (TamaraCheckout::TAMARA_FULLY_CAPTURED_STATUS === TamaraCheckout::getInstance()->getTamaraOrderStatus($wcOrderId)) {
-            $wcOrder->add_order_note(__('Tamara - The payment has been captured successfully.', $this->textDomain));
+            $wcOrder->add_order_note(__('Tamara - The payment has been captured successfully.', 'tamara-checkout'));
             return true;
         } else {
             $payment_method = $wcOrder->get_payment_method();
@@ -1346,7 +1346,8 @@ class WCTamaraGateway extends WC_Payment_Gateway
         if (!empty($captureResponse) && $captureResponse instanceof CaptureResponse && $captureResponse->isSuccess()) {
             $captureId = $captureResponse->getCaptureId();
             $this->updateTamaraCaptureId($wcOrderId, $captureId);
-            $orderNote = sprintf(__('Tamara - The payment has been captured successfully. Capture ID: %s'), $captureId);
+            // translators: %s: Capture ID
+            $orderNote = sprintf(__('Tamara - The payment has been captured successfully. Capture ID: %s', 'tamara-checkout'), $captureId);
             $newOrderStatus = $this->tamaraStatus['payment_capture'];
         } else {
             $errorMessage = null;
@@ -1357,13 +1358,15 @@ class WCTamaraGateway extends WC_Payment_Gateway
                 $errorMessage = $captureResponse->getMessage();
                 TamaraCheckout::getInstance()->logMessage($errorMessage);
                 if (409 === $captureResponse->getStatusCode()) {
-                    $orderNote = sprintf(__('Tamara - There was a conflict in capturing the payment, error message: %s'), $errorMessage);
+                    // translators: %s: Error message
+                    $orderNote = sprintf(__('Tamara - There was a conflict in capturing the payment, error message: %s', 'tamara-checkout'), $errorMessage);
                     $wcOrder->add_order_note($orderNote);
 
                     return;
                 }
             }
-            $orderNote = sprintf(__('Tamara - The payment can not be captured, error message: %s'), $errorMessage);
+            // translators: %s: Error message
+            $orderNote = sprintf(__('Tamara - The payment can not be captured, error message: %s', 'tamara-checkout'), $errorMessage);
             $newOrderStatus = $this->tamaraStatus['capture_failed'];
         }
         TamaraCheckout::getInstance()->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
@@ -1382,7 +1385,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         $payment_method = $wcOrder->get_payment_method();
         if (TamaraCheckout::TAMARA_CANCELED_STATUS === TamaraCheckout::getInstance()->getTamaraOrderStatus($wcOrderId)) {
-            $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', $this->textDomain));
+            $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', 'tamara-checkout'));
             return true;
         } else {
             if ('cancelled' === $statusTo && TamaraCheckout::getInstance()->isTamaraGateway($payment_method)) {
@@ -1408,7 +1411,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
 
                     if (isset($cancelResponse) && $cancelResponse->isSuccess()) {
                         $cancelId = $cancelResponse->getCancelId();
-                        $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', $this->textDomain));
+                        $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', 'tamara-checkout'));
                         $this->updateTamaraCancelId($wcOrderId, $cancelId);
                     } else {
                         $errorMessage = null;
@@ -1560,7 +1563,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
     public function raiseAdminError()
     {
         WC_Admin_Settings::add_error(
-            __('Error! Tamara checkout params cannot be retrieved correctly. Please recheck your Tamara API Token (Merchant Token).', $this->textDomain)
+            __('Error! Tamara checkout params cannot be retrieved correctly. Please recheck your Tamara API Token (Merchant Token).', 'tamara-checkout')
         );
     }
 
@@ -1571,7 +1574,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         WC_Admin_Settings::add_error(
             __('Error! Tamara disabled. Please choose at least one payment type to use with Tamara.',
-                $this->textDomain)
+                'tamara-checkout')
         );
     }
 
@@ -1727,15 +1730,18 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         $this->id = TamaraCheckout::TAMARA_GATEWAY_ID;
         $this->has_fields = true;
-        $this->order_button_text = __('Proceed to Tamara Payment', $this->textDomain);
-        $this->method_title = __('Tamara Gateway', $this->textDomain);
-        $this->method_description = __(static::TAMARA_GATEWAY_DEFAULT_TITLE, $this->textDomain);
+        $this->order_button_text = __('Proceed to Tamara Payment', 'tamara-checkout');
+        $this->method_title = __('Tamara Gateway', 'tamara-checkout');
+        $this->method_description = __('Pay Later with Tamara', 'tamara-checkout');
         $this->errorMap = $this->getErrorMap();
         $this->paymentType = static::PAYMENT_TYPE_PAY_BY_LATER;
         if (is_admin()) {
             $this->title = static::TAMARA_GATEWAY_DEFAULT_TITLE;
         } else {
-            $this->title = __($this->getPaymentTypeTitleMapping()[$this->id], $this->textDomain) ?? static::TAMARA_GATEWAY_DEFAULT_TITLE;
+            $payment_title_mapping = $this->getPaymentTypeTitleMapping();
+            $payment_title = $payment_title_mapping[$this->id] ?? static::TAMARA_GATEWAY_DEFAULT_TITLE;
+            // Use the title directly without translation since it comes from dynamic mapping
+            $this->title = $payment_title;
         }
     }
 
@@ -1818,23 +1824,23 @@ class WCTamaraGateway extends WC_Payment_Gateway
     protected function getErrorMap()
     {
         return [
-            'amount_is_higher_than_max_limit' => __('Order total is beyond the allowed amount for this payment method, reduce order amount or use a different payment method.', $this->textDomain),
-            'amount_is_lower_than_min_limit' => __('Order total has not reached the minimum amount for this payment method, add more items or use a different payment method.', $this->textDomain),
-            'order_not_created' => __('Sorry, Tamara is unable to approve this order, please continue with a different payment method.', $this->textDomain),
-            'total_amount_invalid_limit_24hrs_gmv' => __('We are not able to process your order via Tamara currently, please try again later or proceed with a different payment method.', $this->textDomain),
-            'tamara_disabled' => __('Tamara is currently unavailable, please try again later.', $this->textDomain),
-            'consumer_invalid_phone_number' => __('Invalid Consumer Phone Number', $this->textDomain),
-            'invalid_phone_number' => __('Invalid Phone Number', $this->textDomain),
-            'total_amount_invalid_currency' => __('We do not support cross currencies. Please select the correct currency for your country.', $this->textDomain),
-            'billing_address_invalid_phone_number' => __('Invalid Billing Address Phone Number', $this->textDomain),
-            'shipping_address_invalid_phone_number' => __('Invalid Shipping Address Phone Number', $this->textDomain),
-            'total_amount_invalid_limit' => __('The grand total of order is over/under limit of Tamara', $this->textDomain),
-            'currency_unsupported' => __('We do not support cross currencies. Please select the correct currency for your country', $this->textDomain),
-            'Your order information is invalid' => __('Your order information is invalid', $this->textDomain),
-            'Invalid country code' => __('Invalid country code', $this->textDomain),
-            'We do not support your delivery country' => __('We do not support your delivery country', $this->textDomain),
-            'Your phone number is invalid. Please check again' => __('Your phone number is invalid. Please check again', $this->textDomain),
-            'We do not support cross currencies. Please select the correct currency for your country' => __('We do not support cross currencies. Please select the correct currency for your country', $this->textDomain),
+            'amount_is_higher_than_max_limit' => __('Order total is beyond the allowed amount for this payment method, reduce order amount or use a different payment method.', 'tamara-checkout'),
+            'amount_is_lower_than_min_limit' => __('Order total has not reached the minimum amount for this payment method, add more items or use a different payment method.', 'tamara-checkout'),
+            'order_not_created' => __('Sorry, Tamara is unable to approve this order, please continue with a different payment method.', 'tamara-checkout'),
+            'total_amount_invalid_limit_24hrs_gmv' => __('We are not able to process your order via Tamara currently, please try again later or proceed with a different payment method.', 'tamara-checkout'),
+            'tamara_disabled' => __('Tamara is currently unavailable, please try again later.', 'tamara-checkout'),
+            'consumer_invalid_phone_number' => __('Invalid Consumer Phone Number', 'tamara-checkout'),
+            'invalid_phone_number' => __('Invalid Phone Number', 'tamara-checkout'),
+            'total_amount_invalid_currency' => __('We do not support cross currencies. Please select the correct currency for your country.', 'tamara-checkout'),
+            'billing_address_invalid_phone_number' => __('Invalid Billing Address Phone Number', 'tamara-checkout'),
+            'shipping_address_invalid_phone_number' => __('Invalid Shipping Address Phone Number', 'tamara-checkout'),
+            'total_amount_invalid_limit' => __('The grand total of order is over/under limit of Tamara', 'tamara-checkout'),
+            'currency_unsupported' => __('We do not support cross currencies. Please select the correct currency for your country', 'tamara-checkout'),
+            'Your order information is invalid' => __('Your order information is invalid', 'tamara-checkout'),
+            'Invalid country code' => __('Invalid country code', 'tamara-checkout'),
+            'We do not support your delivery country' => __('We do not support your delivery country', 'tamara-checkout'),
+            'Your phone number is invalid. Please check again' => __('Your phone number is invalid. Please check again', 'tamara-checkout'),
+            'We do not support cross currencies. Please select the correct currency for your country' => __('We do not support cross currencies. Please select the correct currency for your country', 'tamara-checkout'),
         ];
     }
 
@@ -2014,7 +2020,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $description = '';
         if ($this->isSandboxMode()) {
             $description .= '<br/>'.sprintf(__('SANDBOX ENABLED. See the %s for more details.',
-                    $this->textDomain),
+                    'tamara-checkout'),
                     '<a target="_blank" href="https://docs.tamara.co/docs/testing-scenarios">Tamara Sandbox Testing Guide</a>');
         }
 
@@ -2135,16 +2141,22 @@ class WCTamaraGateway extends WC_Payment_Gateway
         if (!empty($countryPaymentTypes)) {
             foreach ($countryPaymentTypes as $countryCode => $countryPaymentType) {
                 if (!empty($countryPaymentType[static::PAYMENT_TYPE_PAY_BY_LATER])) {
+                    $currency_value = isset($currencyByCountryCode[$countryCode]) ? $currencyByCountryCode[$countryCode] : '';
+                    // Currency codes don't need translation
+                    $currency_label = esc_html($currency_value);
+                    $country_name = isset(WC()->countries->countries[$countryCode]) ? WC()->countries->countries[$countryCode] : '';
+                    // Country names from WooCommerce are already translated, just escape
+                    $country_label = esc_html($country_name);
                     $htmlString .= '
                 <div class="tamara-paylater-limits">
-                    <h4>'.__(WC()->countries->countries[$countryCode], $this->textDomain).'</h4>
+                    <h4>'.$country_label.'</h4>
                     <div class="tamara-paylater-limits__items">
                             <div class="tamara-paylater-limits__items__amount">
-                            <p>'.__('- Min Limit: ', $this->textDomain)
-                                   .__($currencyByCountryCode[$countryCode], $this->textDomain).' '
+                            <p>'.__('- Min Limit: ', 'tamara-checkout')
+                                   .$currency_label.' '
                                    .(MoneyHelper::formatNumberGeneral($countryPaymentType[static::PAYMENT_TYPE_PAY_BY_LATER]['min_limit'])).'</p>
-                            <p>'.__('- Max Limit: ', $this->textDomain)
-                                   .__($currencyByCountryCode[$countryCode], $this->textDomain).' '
+                            <p>'.__('- Max Limit: ', 'tamara-checkout')
+                                   .$currency_label.' '
                                    .(MoneyHelper::formatNumberGeneral($countryPaymentType[static::PAYMENT_TYPE_PAY_BY_LATER]['max_limit'])).'</p>
                             </div>
                     </div>
@@ -2171,16 +2183,22 @@ class WCTamaraGateway extends WC_Payment_Gateway
         if (!empty($countryPaymentTypes)) {
             foreach ($countryPaymentTypes as $countryCode => $countryPaymentType) {
                 if (!empty($countryPaymentType[static::PAYMENT_TYPE_PAY_NOW])) {
+                    $currency_value = isset($currencyByCountryCode[$countryCode]) ? $currencyByCountryCode[$countryCode] : '';
+                    // Currency codes don't need translation
+                    $currency_label = esc_html($currency_value);
+                    $country_name = isset(WC()->countries->countries[$countryCode]) ? WC()->countries->countries[$countryCode] : '';
+                    // Country names from WooCommerce are already translated, just escape
+                    $country_label = esc_html($country_name);
                     $htmlString .= '
                 <div class="tamara-paynow-limits">
-                    <h4>'.__(WC()->countries->countries[$countryCode], $this->textDomain).'</h4>
+                    <h4>'.$country_label.'</h4>
                     <div class="tamara-paynow-limits__items">
                             <div class="tamara-paynow-limits__items__amount">
-                            <p>'.__('- Min Limit: ', $this->textDomain)
-                                   .__($currencyByCountryCode[$countryCode], $this->textDomain).' '
+                            <p>'.__('- Min Limit: ', 'tamara-checkout')
+                                   .$currency_label.' '
                                    .(MoneyHelper::formatNumberGeneral($countryPaymentType[static::PAYMENT_TYPE_PAY_NOW]['min_limit'])).'</p>
-                            <p>'.__('- Max Limit: ', $this->textDomain)
-                                   .__($currencyByCountryCode[$countryCode], $this->textDomain).' '
+                            <p>'.__('- Max Limit: ', 'tamara-checkout')
+                                   .$currency_label.' '
                                    .(MoneyHelper::formatNumberGeneral($countryPaymentType[static::PAYMENT_TYPE_PAY_NOW]['max_limit'])).'</p>
                             </div>
                     </div>
@@ -2202,15 +2220,15 @@ class WCTamaraGateway extends WC_Payment_Gateway
     protected function renderHelpTextsHtml()
     {
         return '<div class="tamara-settings-help-texts">
-                    <div class="tamara-settings-help-texts__manage button-primary">'.__('Show More Help Texts', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>
+                    <div class="tamara-settings-help-texts__manage button-primary">'.__('Show More Help Texts', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>
                     <div class="tamara-settings-help-texts__content">
                         <ul>
-                            <li>'.__('Please make sure the Tamara payment status of the order is <strong>captured</strong> before making a refund.', $this->textDomain).'</li>
-                            <li>'.__('You can use the shortcode with attributes to show Tamara product widget on custom pages e.g. <strong>[tamara_show_popup price="99" currency="SAR" language="en"].</strong>', $this->textDomain).'</li>
-                            <li>'.__('For Tamara payment success URL, you can use action <strong>after_tamara_success</strong> to handle further actions.', $this->textDomain).'</li>
-                            <li>'.__('For Tamara payment cancel URL, you can use action <strong>after_tamara_cancel</strong> to handle further actions.', $this->textDomain).'</li>
-                            <li>'.__('For Tamara payment failed URL, you can use action <strong>after_tamara_failure</strong> to handle further actions.', $this->textDomain).'</li>
-                            <li>'.__('All the debug log messages sent from Tamara will be written and saved to the Tamara custom log file in your upload directory.', $this->textDomain).'</li>
+                            <li>'.__('Please make sure the Tamara payment status of the order is <strong>captured</strong> before making a refund.', 'tamara-checkout').'</li>
+                            <li>'.__('You can use the shortcode with attributes to show Tamara product widget on custom pages e.g. <strong>[tamara_show_popup price="99" currency="SAR" language="en"].</strong>', 'tamara-checkout').'</li>
+                            <li>'.__('For Tamara payment success URL, you can use action <strong>after_tamara_success</strong> to handle further actions.', 'tamara-checkout').'</li>
+                            <li>'.__('For Tamara payment cancel URL, you can use action <strong>after_tamara_cancel</strong> to handle further actions.', 'tamara-checkout').'</li>
+                            <li>'.__('For Tamara payment failed URL, you can use action <strong>after_tamara_failure</strong> to handle further actions.', 'tamara-checkout').'</li>
+                            <li>'.__('All the debug log messages sent from Tamara will be written and saved to the Tamara custom log file in your upload directory.', 'tamara-checkout').'</li>
                         </ul>
                     </div>
                 </div>';
@@ -2226,24 +2244,29 @@ class WCTamaraGateway extends WC_Payment_Gateway
     public function getAvailableSupportedInstalments($countryCode)
     {
         $supportedInstalments = $this->getPaymentTypes($countryCode)[static::PAYMENT_TYPE_PAY_BY_INSTALMENTS]['payment_type_array']['supported_instalments'] ?? [];
-        $currencyByCountryCode = __(array_flip($this->getCurrencyToCountryMapping())[$countryCode], $this->textDomain);
+        $currency_mapping = array_flip($this->getCurrencyToCountryMapping());
+        $currency_value = isset($currency_mapping[$countryCode]) ? $currency_mapping[$countryCode] : '';
+        $currencyByCountryCode = esc_html($currency_value);
         $availableInstalments = [];
         $result = [];
         if (!empty($supportedInstalments)) {
             foreach ($supportedInstalments as $instalment) {
                 $instalmentMinLimit = $instalment['min_limit']['amount'] ?? null;
                 $instalmentMaxLimit = $instalment['max_limit']['amount'] ?? null;
+                $instalment_count = $instalment['instalments'];
                 $result['pay_in_'.$instalment['instalments'].'_'.$countryCode] = [
-                    'title' => __('Pay In '.$instalment['instalments'], $this->textDomain),
-                    'label' => __('Enable Pay In '.$instalment['instalments'], $this->textDomain),
+                    // translators: %d: Number of instalments
+                    'title' => sprintf(__('Pay In %d', 'tamara-checkout'), $instalment_count),
+                    // translators: %d: Number of instalments
+                    'label' => sprintf(__('Enable Pay In %d', 'tamara-checkout'), $instalment_count),
                     'default' => 'yes',
                     'type' => 'checkbox',
                     'class' => 'tamara-payinx tamara-payinx-'.$countryCode,
                     'description' =>
                         '<div class="tamara-payinx-limits">
                             <div class="tamara-payinx-limits__amount">
-                                <p>'.__('- Min Amount: ', $this->textDomain).(MoneyHelper::formatNumberGeneral($instalmentMinLimit).' '.$currencyByCountryCode ?? 'N/A').'</p>
-                                <p>'.__('- Max Amount: ', $this->textDomain).(MoneyHelper::formatNumberGeneral($instalmentMaxLimit).' '.$currencyByCountryCode ?? 'N/A').'</p>
+                                <p>'.__('- Min Amount: ', 'tamara-checkout').(MoneyHelper::formatNumberGeneral($instalmentMinLimit).' '.$currencyByCountryCode ?? 'N/A').'</p>
+                                <p>'.__('- Max Amount: ', 'tamara-checkout').(MoneyHelper::formatNumberGeneral($instalmentMaxLimit).' '.$currencyByCountryCode ?? 'N/A').'</p>
                             </div>
                         </div>',
                 ];
@@ -2277,12 +2300,12 @@ class WCTamaraGateway extends WC_Payment_Gateway
             foreach ($countryPaymentTypes as $countryCode => $countryPaymentType) {
                 if (!empty($countryPaymentType[static::PAYMENT_TYPE_PAY_BY_LATER])) {
                     $result['pay_by_later_enabled'] = [
-                        'title' => __('Pay By Later', $this->textDomain),
-                        'label' => __('Enable Pay By Later', $this->textDomain),
+                        'title' => __('Pay By Later', 'tamara-checkout'),
+                        'label' => __('Enable Pay By Later', 'tamara-checkout'),
                         'default' => 'yes',
                         'type' => 'checkbox',
                         'description' =>
-                            '<p>'.__('Limit changes cache will be cleared and updated whenever you refresh this page or save the settings.', $this->textDomain).'</p>'.
+                            '<p>'.__('Limit changes cache will be cleared and updated whenever you refresh this page or save the settings.', 'tamara-checkout').'</p>'.
                             $this->renderTamaraCountryPaymentTypesHtml(),
                     ];
                 }
@@ -2305,12 +2328,12 @@ class WCTamaraGateway extends WC_Payment_Gateway
             foreach ($countryPaymentTypes as $countryCode => $countryPaymentType) {
                 if (!empty($countryPaymentType[static::PAYMENT_TYPE_PAY_NOW])) {
                     $result['pay_now_enabled'] = [
-                        'title' => __('Pay Now', $this->textDomain),
-                        'label' => __('Enable Pay Now', $this->textDomain),
+                        'title' => __('Pay Now', 'tamara-checkout'),
+                        'label' => __('Enable Pay Now', 'tamara-checkout'),
                         'default' => 'yes',
                         'type' => 'checkbox',
                         'description' =>
-                            '<p>'.__('Limit changes cache will be cleared and updated whenever you refresh this page or save the settings.', $this->textDomain).'</p>'.
+                            '<p>'.__('Limit changes cache will be cleared and updated whenever you refresh this page or save the settings.', 'tamara-checkout').'</p>'.
                             $this->renderTamaraPayNowOptionHtml(),
                     ];
                 }
@@ -2346,10 +2369,10 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $logFilePathExists = file_exists(TamaraCheckout::getInstance()->logMessageFilePath());
         if (!$logFilePathExists) {
             return
-                '<p>'.__('No message log found!', $this->textDomain).'</p>';
+                '<p>'.__('No message log found!', 'tamara-checkout').'</p>';
         } else {
             return
-                '<a target="_blank" href="'.TamaraCheckout::getInstance()->logMessageFileUrl().'" class="button-primary" download>'.__('Download Log', $this->textDomain).'</a>';
+                '<a target="_blank" href="'.TamaraCheckout::getInstance()->logMessageFileUrl().'" class="button-primary" download>'.__('Download Log', 'tamara-checkout').'</a>';
         }
     }
 
@@ -2364,7 +2387,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
         if (!empty($countryPaymentTypes)) {
             foreach ($countryPaymentTypes as $countryCode => $countryPaymentType) {
                 if (!empty($countryPaymentType[static::PAYMENT_TYPE_PAY_BY_LATER])) {
-                    return '<div class="tamara-paylater-manage button-primary">'.__('Manage Pay Later Options', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>';
+                    return '<div class="tamara-paylater-manage button-primary">'.__('Manage Pay Later Options', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>';
                 }
             }
         }
@@ -2383,7 +2406,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
         if (!empty($countryPaymentTypes)) {
             foreach ($countryPaymentTypes as $countryCode => $countryPaymentType) {
                 if (!empty($countryPaymentType[static::PAYMENT_TYPE_PAY_NOW])) {
-                    return '<div class="tamara-paynow-manage button-primary">'.__('Manage Pay Now Options', $this->textDomain).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>';
+                    return '<div class="tamara-paynow-manage button-primary">'.__('Manage Pay Now Options', 'tamara-checkout').'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>';
                 }
             }
         }
@@ -2401,17 +2424,18 @@ class WCTamaraGateway extends WC_Payment_Gateway
     protected function generatePayInXOptionsContent($countryCode)
     {
         $supportedInstalments = $this->getPaymentTypes($countryCode)[static::PAYMENT_TYPE_PAY_BY_INSTALMENTS] ?? [];
-        $currencyByCountryCode = __(array_flip($this->getCurrencyToCountryMapping())[$countryCode], $this->textDomain);
+        $currency_mapping = array_flip($this->getCurrencyToCountryMapping());
+        $currencyByCountryCode = isset($currency_mapping[$countryCode]) ? esc_html($currency_mapping[$countryCode]) : '';
         if (!empty($supportedInstalments)) {
             return
                 '<p class="pay-in-x-'.strtolower($currencyByCountryCode).'-note">'.__('<strong>Note:</strong> Payment type Pay In X options will be listed below, after your confidential configuration are confirmed on settings saved.
-                 <br>After your confidential settings are saved and fetch new Pay In X options, please re-configure your Pay In X available options and click on "Save changes" again to take effects.', $this->textDomain).'</p>
-                 <p class="pay-in-x-'.strtolower($currencyByCountryCode).'-note">'.__('Limit changes cache will be cleared and updated whenever you refresh this page or save the settings.', $this->textDomain).'</p>
-                 <div class="tamara-payinx-'.strtolower($currencyByCountryCode).'-manage button-primary">'.sprintf(__('Manage Pay In X in %s', $this->textDomain), $currencyByCountryCode).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>';
+                 <br>After your confidential settings are saved and fetch new Pay In X options, please re-configure your Pay In X available options and click on "Save changes" again to take effects.', 'tamara-checkout').'</p>
+                 <p class="pay-in-x-'.strtolower($currencyByCountryCode).'-note">'.__('Limit changes cache will be cleared and updated whenever you refresh this page or save the settings.', 'tamara-checkout').'</p>
+                 <div class="tamara-payinx-'.strtolower($currencyByCountryCode).'-manage button-primary">'.sprintf(__('Manage Pay In X in %s', 'tamara-checkout'), $currencyByCountryCode).'<i class="tamara-toggle-btn fa-solid fa-chevron-down"></i></div>';
         }
 
         return '<p class="pay-in-x-'.strtolower($currencyByCountryCode).'-note"><strong>'.sprintf(__('Pay In X Options in %s currency unavailable.',
-                $this->textDomain), $currencyByCountryCode).'</strong></p>';
+                'tamara-checkout'), $currencyByCountryCode).'</strong></p>';
     }
 
     /**

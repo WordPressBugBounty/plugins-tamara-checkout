@@ -325,7 +325,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
         if (!empty($payment_method) && $this->isTamaraGateway($payment_method)) {
             return $str.$this->getServiceView()->render('views/woocommerce/checkout/tamara-order-received-button',
                     [
-                        'textDomain' => $this->textDomain,
+                        'textDomain' => 'tamara-checkout',
                     ]);
         }
 
@@ -615,7 +615,12 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function logMessageFilePath()
     {
-        return (defined('UPLOADS') ? UPLOADS : (WP_CONTENT_DIR.'/uploads/').static::MESSAGE_LOG_FILE_NAME);
+        $upload_dir = wp_upload_dir();
+        $plugin_dir = $upload_dir['basedir'] . '/tamara-checkout';
+        if ( ! file_exists( $plugin_dir ) ) {
+            wp_mkdir_p( $plugin_dir );
+        }
+        return $plugin_dir . '/' . static::MESSAGE_LOG_FILE_NAME;
     }
 
     /**
@@ -732,9 +737,9 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function addRefundNote($order)
     {
         if ($this->isTamaraGateway($order->get_payment_method())) {
-            echo '<br>'.__('This order is paid via Tamara Pay Later.', $this->textDomain);
-            echo '<br>'.'<strong>'.__('You need to refund the full shipping amount.',
-                    $this->textDomain).'</strong>';
+            echo '<br>' . esc_html(__('This order is paid via Tamara Pay Later.', 'tamara-checkout'));
+            echo '<br>' . '<strong>' . esc_html(__('You need to refund the full shipping amount.',
+                    'tamara-checkout')) . '</strong>';
         }
     }
 
@@ -744,73 +749,80 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function registerTamaraCustomOrderStatuses()
     {
         register_post_status('wc-tamara-p-canceled', [
-            'label' => _x('Tamara Payment Cancelled', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Payment Cancelled', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Payment Cancelled <span class="count">(%s)</span>',
-                'Tamara Payment Cancelled <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Payment Cancelled <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
 
         register_post_status('wc-tamara-p-failed', [
-            'label' => _x('Tamara Payment Failed', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Payment Failed', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Payment Failed <span class="count">(%s)</span>',
-                'Tamara Payment Failed <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Payment Failed <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
 
         register_post_status('wc-tamara-c-failed', [
-            'label' => _x('Tamara Capture Failed', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Capture Failed', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Capture Failed <span class="count">(%s)</span>',
-                'Tamara Capture Failed <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Capture Failed <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
 
         register_post_status('wc-tamara-a-done', [
-            'label' => _x('Tamara Authorise Success', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Authorise Success', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Authorise Success <span class="count">(%s)</span>',
-                'Tamara Authorise Success <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Authorise Success <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
 
         register_post_status('wc-tamara-a-failed', [
-            'label' => _x('Tamara Authorise Failed', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Authorise Failed', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Authorise Failed <span class="count">(%s)</span>',
-                'Tamara Authorise Failed <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Authorise Failed <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
 
         register_post_status('wc-tamara-o-canceled', [
-            'label' => _x('Tamara Order Cancelled', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Order Cancelled', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Order Cancelled <span class="count">(%s)</span>',
-                'Tamara Order Cancelled <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Order Cancelled <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
 
         register_post_status('wc-tamara-p-capture', [
-            'label' => _x('Tamara Payment Capture', 'Order status', $this->textDomain),
+            'label' => _x('Tamara Payment Capture', 'Order status', 'tamara-checkout'),
             'public' => true,
             'exclude_from_search' => false,
             'show_in_admin_all_list' => true,
             'show_in_admin_status_list' => true,
+            // translators: %s: Number of orders
             'label_count' => _n_noop('Tamara Payment Capture <span class="count">(%s)</span>',
-                'Tamara Payment Capture <span class="count">(%s)</span>', $this->textDomain),
+                'Tamara Payment Capture <span class="count">(%s)</span>', 'tamara-checkout'),
         ]);
     }
 
@@ -824,19 +836,19 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function addTamaraCustomOrderStatuses($order_statuses)
     {
         $order_statuses['wc-tamara-p-canceled'] = _x('Tamara Payment Cancelled', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
         $order_statuses['wc-tamara-p-failed'] = _x('Tamara Payment Failed', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
         $order_statuses['wc-tamara-c-failed'] = _x('Tamara Capture Failed', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
         $order_statuses['wc-tamara-a-done'] = _x('Tamara Authorise Done', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
         $order_statuses['wc-tamara-a-failed'] = _x('Tamara Authorise Failed', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
         $order_statuses['wc-tamara-o-canceled'] = _x('Tamara Order Cancelled', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
         $order_statuses['wc-tamara-p-capture'] = _x('Tamara Payment Capture', 'Order status',
-            $this->textDomain);
+            'tamara-checkout');
 
         return $order_statuses;
     }
@@ -848,7 +860,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     {
         $locale = determine_locale();
         $mofile = $locale.'.mo';
-        load_textdomain($this->textDomain, $this->basePath.'/languages/'.$this->textDomain.'-'.$mofile);
+        load_textdomain('tamara-checkout', $this->basePath.'/languages/'.'tamara-checkout'.'-'.$mofile);
 
     }
 
@@ -1090,10 +1102,10 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function addTamaraAuthoriseFailedMessage()
     {
-        $tamaraAuthoriseParam = filter_input(INPUT_GET, 'tamara_authorise');
+        $tamaraAuthoriseParam = filter_input(INPUT_GET, 'tamara_authorise', FILTER_SANITIZE_STRING);
         if ('failed' === $tamaraAuthoriseParam && !static::isRestRequest()) {
             if (function_exists('wc_add_notice')) {
-                wc_add_notice(__('We are unable to authorise your payment from Tamara. Please contact us if you need assistance.', $this->textDomain), 'error');
+                wc_add_notice(__('We are unable to authorise your payment from Tamara. Please contact us if you need assistance.', 'tamara-checkout'), 'error');
             }
         }
     }
@@ -1166,7 +1178,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function activatePlugin()
     {
         if (!class_exists('WooCommerce')) {
-            die(sprintf(__('Plugin `%s` needs Woocommerce to be activated', $this->textDomain),
+            die(sprintf(__('Plugin `%s` needs Woocommerce to be activated', 'tamara-checkout'),
                 'Tamara Checkout'));
         }
     }
@@ -1221,7 +1233,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function addSettingsLinks($pluginLinks)
     {
         $pluginLinks[] = '<a href="'.$this->getAdminSettingLink().'">'.esc_html__('Settings',
-                $this->textDomain).'</a>';
+                'tamara-checkout').'</a>';
 
         return $pluginLinks;
     }
@@ -1233,8 +1245,9 @@ class TamaraCheckout extends Container implements WPPluginInterface
     {
         $class = 'notice notice-warning';
 
-        $message = sprintf(__('Plugin `%s` deactivated because WooCommerce is not active. Please activate WooCommerce first.',
-            $this->textDomain), 'Tamara Checkout');
+        // translators: %s: Plugin name
+        $message = sprintf(esc_html__('Plugin `%s` deactivated because WooCommerce is not active. Please activate WooCommerce first.',
+            'tamara-checkout'), esc_html('Tamara Checkout'));
 
         printf('<div class="%1$s"><p><strong>%2$s</strong></p></div>', $class, $message);
     }
@@ -1319,7 +1332,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     {
         if (isset($checkoutFields['billing'], $checkoutFields['billing']['billing_phone'])) {
             $checkoutFields['billing']['billing_phone']['description'] = __('If you use Tamara Payment, this should be your full Tamara registered phone number (e.g. +966504449999 for KSA, +97150888444 for UAE)',
-                $this->textDomain);
+                'tamara-checkout');
         }
 
         return $checkoutFields;
@@ -1410,7 +1423,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
             if (isset($refundResponse) && $refundResponse->isSuccess()) {
                 $wcOrder->add_order_note(
                 /* translators: Refund ID */
-                    sprintf(__('Order has been refunded successfully - Refund ID: #%1$s', $this->textDomain),
+                    sprintf(__('Order has been refunded successfully - Refund ID: #%1$s', 'tamara-checkout'),
                         $wcOrderRefund->get_id()));
 
             } else {
@@ -1424,19 +1437,19 @@ class TamaraCheckout extends Container implements WPPluginInterface
                 } elseif (isset($refundResponse)) {
                     if ('refund.shipping_amount_invalid' === $refundResponse->getMessage()) {
                         throw new Exception(__('You need to enter the full shipping amount to refund.',
-                            $this->textDomain));
+                            'tamara-checkout'));
                     } elseif ('items_is_empty' === $refundResponse->getErrors()[0]['error_code']) {
                         throw new Exception(__('Refund item is empty. Please choose your item to refund.',
-                            $this->textDomain));
+                            'tamara-checkout'));
                     } elseif ('refund.capture_not_found' === $refundResponse->getMessage()) {
                         $captureNotFoundMessage = __('Tamara Capture ID not found. Please capture the payment before making a refund.',
-                            $this->textDomain);
+                            'tamara-checkout');
                         $wcOrder->add_order_note($captureNotFoundMessage);
                         throw new Exception($captureNotFoundMessage);
                     }
                 }
                 throw new Exception(__('Error! Tamara is having a problem. Please contact Tamara and try again later',
-                    $this->textDomain));
+                    'tamara-checkout'));
             }
         }
     }
@@ -1759,7 +1772,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
             return $fields;
         } elseif ($this->isForceBillingPhoneEnabled() && empty($fields['billing_phone'])) {
             $fields['billing_phone'] = [
-                'label' => __('Phone', 'woocommerce'),
+                'label' => __('Phone', 'tamara-checkout'),
                 'required' => true,
             ];
 
@@ -1778,26 +1791,23 @@ class TamaraCheckout extends Container implements WPPluginInterface
             'action' => 'tamara_perform_cron',
         ], admin_url('admin-ajax.php')));
 
-		$sectionSlug = esc_attr(isset($_GET['section']) ? $_GET['section'] : '');
-        echo <<<SCRIPT
-    <script type="text/javascript">
+		$sectionSlug = isset($_GET['section']) ? esc_attr(sanitize_text_field(wp_unslash($_GET['section']))) : '';
+        echo '<script type="text/javascript">
         var data = {
-            'action': 'tamara_perform_cron'
+            \'action\': \'tamara_perform_cron\'
         };
-		var sectionSlug = "$sectionSlug";
+		var sectionSlug = "' . esc_js($sectionSlug) . '";
 		var randomNumber = Math.floor(Math.random() * 20) + 1;
-		if (randomNumber === 1 || (typeof pagenow !== 'undefined' && pagenow === 'woocommerce_page_wc-settings' && sectionSlug === 'tamara-gateway')) {
-			fetch("$ajaxCronjobUrl", {
-				credentials: 'same-origin',
-				method: 'GET',
-				// body: JSON.stringify(data),
+		if (randomNumber === 1 || (typeof pagenow !== \'undefined\' && pagenow === \'woocommerce_page_wc-settings\' && sectionSlug === \'tamara-gateway\')) {
+			fetch("' . esc_js($ajaxCronjobUrl) . '", {
+				credentials: \'same-origin\',
+				method: \'GET\',
 				headers: {
-					'Content-Type': 'application/json',
+					\'Content-Type\': \'application/json\',
 				},
 			});
 		}
-    </script>
-SCRIPT;
+    </script>';
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
@@ -2221,7 +2231,7 @@ SCRIPT;
             isset($_GET['cancel_order']) &&
             isset($_GET['order']) &&
             isset($_GET['order_id']) &&
-            (isset($_GET['_wpnonce']) && wp_verify_nonce(wp_unslash($_GET['_wpnonce']), 'woocommerce-cancel_order')) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            (isset($_GET['_wpnonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'woocommerce-cancel_order'))
         ) {
             wc_nocache_headers();
             $order_key = wp_unslash($_GET['order']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -2234,7 +2244,7 @@ SCRIPT;
 
             if ($user_can_cancel && !$order_can_cancel && $this->isTamaraGateway($paymentMethod)) {
                 wc_clear_notices();
-                wc_add_notice(__('Your payment via Tamara has failed, please try again with a different payment method.', $this->textDomain), 'error');
+                wc_add_notice(__('Your payment via Tamara has failed, please try again with a different payment method.', 'tamara-checkout'), 'error');
             }
 
             if ($redirect) {

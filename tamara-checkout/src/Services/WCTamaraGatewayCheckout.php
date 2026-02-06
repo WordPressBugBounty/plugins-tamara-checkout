@@ -24,7 +24,8 @@ class WCTamaraGatewayCheckout extends WCTamaraGateway
     {
         parent::initBaseAttributes();
         $this->id = TamaraCheckout::TAMARA_GATEWAY_CHECKOUT_ID;
-        $this->title = __(sprintf('Tamara: Split in %d, interest-free', 4), $this->textDomain);
+        // translators: %d: Number of instalments
+        $this->title = sprintf(__('Tamara: Split in %d, interest-free', 'tamara-checkout'), 4);
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */

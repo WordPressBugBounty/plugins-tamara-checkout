@@ -149,7 +149,7 @@ class TamaraNotificationService
                 $wcOrder->add_order_note(
                     __(
                         'Tamara - Order authorised re-occurred, ignore it.',
-                        $this->textDomain
+                        'tamara-checkout'
                     )
                 );
             } else {
@@ -190,7 +190,8 @@ class TamaraNotificationService
                 if ($eventType === 'order_expired' || $eventType === 'order_declined') {
                     $wcOrderId = $webhookMessage->getOrderReferenceId();
                     $wcOrder = wc_get_order($wcOrderId);
-                    $orderNote = sprintf(__('Tamara - Event type `%s` received via webhook'), $eventType);
+                    // translators: %s: Event type
+                    $orderNote = esc_html( sprintf( __('Tamara - Event type `%s` received via webhook', 'tamara-checkout'), $eventType) );
                     $newOrderStatus = $this->tamaraStatus['order_cancelled'];
                     TamaraCheckout::getInstance()->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
                 }

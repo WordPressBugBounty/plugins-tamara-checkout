@@ -27,8 +27,11 @@ abstract class WCTamaraGatewayPayByInstalments extends WCTamaraGateway
     {
         parent::initBaseAttributes();
         $this->initPaymentType();
-        $this->title = __($this->getPaymentTypeTitleMapping($this->instalmentPeriod)[$this->id], $this->textDomain)
-                       ?? sprintf(__('Pay In %d with Tamara', $this->textDomain), $this->instalmentPeriod);
+        $payment_title_mapping = $this->getPaymentTypeTitleMapping($this->instalmentPeriod);
+        $payment_title = isset($payment_title_mapping[$this->id]) ? $payment_title_mapping[$this->id] : '';
+        // Use the title directly without translation since it comes from dynamic mapping, or use fallback
+        $this->title = !empty($payment_title) ? $payment_title
+                       : sprintf(__('Pay In %d with Tamara', 'tamara-checkout'), $this->instalmentPeriod);
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */

@@ -21,7 +21,7 @@ class WCTamaraGatewayPayNow extends WCTamaraGateway
         parent::initBaseAttributes();
         $this->id = TamaraCheckout::TAMARA_GATEWAY_PAY_NOW;
         $this->paymentType = static::PAYMENT_TYPE_PAY_NOW;
-        $this->title = __(static::TAMARA_GATEWAY_PAY_NOW_DEFAULT_TITLE, $this->textDomain);
+        $this->title = __('Tamara pay now using Mada, Apple Pay, or credit card', 'tamara-checkout');
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */

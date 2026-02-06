@@ -21,7 +21,7 @@ class WCTamaraGatewayPayNextMonth extends WCTamaraGateway
         parent::initBaseAttributes();
         $this->id = TamaraCheckout::TAMARA_GATEWAY_PAY_NEXT_MONTH;
         $this->paymentType = static::PAYMENT_TYPE_PAY_NEXT_MONTH;
-        $this->title = __(static::TAMARA_GATEWAY_PAY_NEXT_MONTH_DEFAULT_TITLE, $this->textDomain);
+        $this->title = __('Pay Next Month with Tamara', 'tamara-checkout');
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
