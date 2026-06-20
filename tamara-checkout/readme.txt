@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.19
+Stable tag: 1.9.9.20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,7 +56,7 @@ You can find out more how to install and use the plugin with our user guides doc
 
 == Changelog ==
 
-= 1.9.9.19 - 2026-06-19 =
+= 1.9.9.20 - 2026-06-20 =
 
 Enhancements:
 
