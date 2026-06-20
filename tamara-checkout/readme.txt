@@ -2,9 +2,9 @@
 Contributors: tamarasolution, npbtrac, kimloile
 Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.16
+Stable tag: 1.9.9.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,13 @@ You can find out more how to install and use the plugin with our user guides doc
 * Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
+
+= 1.9.9.18 - 2026-06-18 =
+
+Enhancements:
+
+* Change the default widget position to before cart form
+* Fix some UI bugs
 
 = 1.9.9.10 - 2025-08-11 =
 

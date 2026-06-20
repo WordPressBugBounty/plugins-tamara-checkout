@@ -35,15 +35,8 @@ class TamaraCheckout extends Container implements WPPluginInterface
      * @var string Tamara CheckoutFrame JS Url
      */
     public const
-        TAMARA_PRODUCT_WIDGET_URL = 'https://cdn.tamara.co/widget/product-widget.min.js',
-        TAMARA_INFORMATION_WIDGET_URL = 'https://cdn.tamara.co/widget/tamara-widget.min.js',
         TAMARA_SUMMARY_WIDGET_URL = 'https://cdn.tamara.co/widget-v2/tamara-widget.js',
-        TAMARA_INSTALLMENT_PLAN_WIDGET_URL = 'https://cdn.tamara.co/widget/installment-plan.min.js',
-
-        TAMARA_PRODUCT_WIDGET_SANDBOX_URL = 'https://cdn-sandbox.tamara.co/widget/product-widget.min.js',
-        TAMARA_INFORMATION_WIDGET_SANDBOX_URL = 'https://cdn-sandbox.tamara.co/widget/tamara-widget.min.js',
         TAMARA_SUMMARY_WIDGET_SANDBOX_URL = 'https://cdn-sandbox.tamara.co/widget-v2/tamara-widget.js',
-        TAMARA_INSTALLMENT_PLAN_WIDGET_SANDBOX_URL = 'https://cdn-sandbox.tamara.co/widget/installment-plan.min.js',
 
         TAMARA_LOGO_BADGE_EN_URL = 'https://cdn.tamara.co/assets/png/tamara-logo-badge-en.png',
         TAMARA_LOGO_BADGE_AR_URL = 'https://cdn.tamara.co/assets/png/tamara-logo-badge-ar.png',
@@ -257,7 +250,8 @@ class TamaraCheckout extends Container implements WPPluginInterface
         add_action('wp_ajax_tamara_perform_cron', [$this, 'performCron']);
         add_action('wp_ajax_tamara-authorise', [$this, 'tamaraAuthoriseHandler']);
         add_action('wp_ajax_nopriv_tamara-authorise', [$this, 'tamaraAuthoriseHandler']);
-        add_action('wp_head', [$this, 'tamaraCheckoutParams']);
+        add_action('wp_head', [$this, 'addTamaraGeneratorMeta']);
+        add_filter('script_loader_tag', [$this, 'addDeferToScriptTags'], 10, 3);
         add_action('woocommerce_checkout_update_order_review', [$this, 'getUpdatedPhoneNumberOnCheckout']);
 
         add_action('admin_footer', [$this, 'addCronJobTriggerScript']);
@@ -323,10 +317,12 @@ class TamaraCheckout extends Container implements WPPluginInterface
         $payment_method = $order->get_payment_method();
 
         if (!empty($payment_method) && $this->isTamaraGateway($payment_method)) {
-            return $str.$this->getServiceView()->render('views/woocommerce/checkout/tamara-order-received-button',
-                    [
-                        'textDomain' => 'tamara-checkout',
-                    ]);
+            $tamaraOrderReceivedHtml = $this->getServiceView()->render('views/woocommerce/checkout/tamara-order-received-button',
+                [
+                    'textDomain' => 'tamara-checkout',
+                ]);
+
+            return $str.$tamaraOrderReceivedHtml;
         }
 
         return $str;
@@ -936,34 +932,29 @@ class TamaraCheckout extends Container implements WPPluginInterface
     }
 
     /**
-     * Add needed params for Tamara checkout success url
+     * Output Tamara Checkout generator meta tag in document head.
      */
-    public function tamaraCheckoutParams()
+    public function addTamaraGeneratorMeta()
     {
-        $storeCurrency = get_woocommerce_currency();
-        $publicKey = $this->getWCTamaraGatewayService()->getPublicKey() ?? '';
-        $siteLocale = substr(get_locale(), 0, 2) ?? "en";
-        $countryCode = $this->getWCTamaraGatewayService()->getCurrentCountryCode();
-        ?>
-        <meta name="generator" content="TamaraCheckout <?php echo $this->version ?>" />
-        <script type="text/javascript">
-            let tamaraCheckoutParams = {
-                "ajaxUrl": "<?php echo esc_attr(admin_url('admin-ajax.php')) ?>",
-                "publicKey": "<?php echo $publicKey ?>",
-                "currency": "<?php echo $storeCurrency ?>",
-                "country": "<?php echo $countryCode ?>",
-            };
-            window.tamaraWidgetConfig = {
-                lang: "<?php echo $siteLocale ?>",
-                country: "<?php echo $countryCode ?>",
-                publicKey: "<?php echo $publicKey ?>",
-            };
-        </script>
-        <?php if ($this->getWCTamaraGatewayService()->isLiveMode()) { ?>
-        <script type="text/javascript" defer src="<?php echo static::TAMARA_SUMMARY_WIDGET_URL ?>"></script>
-    <?php } else { ?>
-        <script type="text/javascript" defer src="<?php echo static::TAMARA_SUMMARY_WIDGET_SANDBOX_URL ?>"></script>
-    <?php }
+        echo '<meta name="generator" content="TamaraCheckout '.esc_attr($this->version).'" />'."\n";
+    }
+
+    /**
+     * Add defer attribute to Tamara summary widget script tag.
+     *
+     * @param string $tag
+     * @param string $handle
+     * @param string $src
+     *
+     * @return string
+     */
+    public function addDeferToScriptTags($tag, $handle, $src)
+    {
+        if ('tamara-summary-widget' === $handle) {
+            return str_replace('<script ', '<script defer ', $tag);
+        }
+
+        return $tag;
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
@@ -979,7 +970,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     protected function isOrderTamaraApproved($wcOrderId)
     {
         $tamaraOrder = $this->getTamaraOrderByWcOrderId($wcOrderId);
-        if ($tamaraOrder && 'approved' === $tamaraOrder->getStatus()) {
+        if ($tamaraOrder && ('approved' === $tamaraOrder->getStatus() || 'authorized' === $tamaraOrder->getStatus())) {
             return true;
         }
 
@@ -1078,11 +1069,16 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function authoriseOrder($wcOrderId)
     {
+        /** @var WC_Order $wcOrder */
         $wcOrder = wc_get_order($wcOrderId);
-
+        
         try {
-            if (!$this->isOrderAuthorised($wcOrderId) && $wcOrder && ($this->isOrderTamaraApproved($wcOrderId))) {
-                $tamaraOrderId = $this->getTamaraOrderId($wcOrderId);
+            if (!$this->isOrderAuthorised($wcOrderId) && $wcOrder && $wcOrder->get_status() === 'pending') {
+                $tamaraOrderId = (string) $this->getTamaraOrderId($wcOrderId);
+                if (empty($tamaraOrderId)) {
+                    return false;
+                }
+
                 /** @var TamaraNotificationService $tamaraNotificationService */
                 $tamaraNotificationService = $this->getService(TamaraNotificationService::class);
                 $tamaraNotificationService->authoriseOrder($wcOrderId, $tamaraOrderId);
@@ -1102,7 +1098,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function addTamaraAuthoriseFailedMessage()
     {
-        $tamaraAuthoriseParam = filter_input(INPUT_GET, 'tamara_authorise', FILTER_SANITIZE_STRING);
+        $tamaraAuthoriseParam = isset($_GET['tamara_authorise']) ? sanitize_text_field(wp_unslash($_GET['tamara_authorise'])) : '';
         if ('failed' === $tamaraAuthoriseParam && !static::isRestRequest()) {
             if (function_exists('wc_add_notice')) {
                 wc_add_notice(__('We are unable to authorise your payment from Tamara. Please contact us if you need assistance.', 'tamara-checkout'), 'error');
@@ -1281,26 +1277,25 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function adjustTamaraPaymentTypesOnCheckout($availableGateways)
     {
-        if ($this->isTamaraGatewayEnabled() && is_checkout()) {
-            if ($this->getWCTamaraGatewayService()->isSingleCheckoutEnabled()) {
-                $availableGateways = $this->possiblyAddTamaraSingleCheckout($availableGateways);
-            } else {
-                for ($i = 12; $i >= 2; $i--) {
-                    $tamaraPayLaterKey = static::TAMARA_GATEWAY_ID;
-                    $tamaraPayLaterOffset = array_search($tamaraPayLaterKey, array_keys(WC()->payment_gateways->payment_gateways()));
-                    $availableGateways = array_merge(
-                        array_slice($availableGateways, 0, $tamaraPayLaterOffset),
-                        array($this->getWCTamaraGatewayPayInXService($i)->id => $this->getWCTamaraGatewayPayInXService($i)),
-                        array_slice($availableGateways, $tamaraPayLaterOffset, null)
-                    );
-                }
-                $payNextMonthService = [static::TAMARA_GATEWAY_PAY_NEXT_MONTH => $this->getWCTamaraGatewayPayNextMonthService()];
-                $availableGateways = $this->mergeTamaraPaymentMethodsAfterPayLaterOffset($payNextMonthService, $availableGateways);
-                $payNowService = [static::TAMARA_GATEWAY_PAY_NOW => $this->getWCTamaraGatewayPayNowService()];
-                $availableGateways = $this->mergeTamaraPaymentMethodsAfterPayLaterOffset($payNowService, $availableGateways);
-            }
+        if (!$this->isTamaraGatewayEnabled() || !is_checkout()) {
+            return $availableGateways;
         }
-        return $availableGateways;
+
+        return array_filter($availableGateways, function ($gateway, $gatewayId) {
+            if ('tamara-gateway' === $gatewayId) {
+                return true;
+            }
+
+            if (is_string($gatewayId) && 0 === strpos($gatewayId, 'tamara-gateway')) {
+                return false;
+            }
+
+            if (!empty($gateway->id) && 0 === strpos($gateway->id, 'tamara-gateway') && TamaraCheckout::TAMARA_GATEWAY_ID !== $gateway->id) {
+                return false;
+            }
+
+            return true;
+        }, ARRAY_FILTER_USE_BOTH);
     }
 
     /**
@@ -1343,20 +1338,29 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function enqueueScripts()
     {
-        if ($this->getWCTamaraGatewayService()->isLiveMode()) {
-            if (is_checkout()) {
-                wp_enqueue_script('tamara-information-widget', static::TAMARA_INFORMATION_WIDGET_URL, [], $this->version, true);
-                wp_enqueue_script('tamara-installment-plan-widget', static::TAMARA_INSTALLMENT_PLAN_WIDGET_URL, [], $this->version, true);
-            }
-            wp_enqueue_script('tamara-product-widget', static::TAMARA_PRODUCT_WIDGET_URL, [], $this->version, true);
-        } else {
-            if (is_checkout()) {
-                wp_enqueue_script('tamara-information-sandbox-widget', static::TAMARA_INFORMATION_WIDGET_SANDBOX_URL, [], $this->version, true);
-                wp_enqueue_script('tamara-installment-plan-sandbox-widget', static::TAMARA_INSTALLMENT_PLAN_WIDGET_SANDBOX_URL, [], $this->version, true);
-            }
-            wp_enqueue_script('tamara-product-sandbox-widget', static::TAMARA_PRODUCT_WIDGET_SANDBOX_URL, [], $this->version, true);
-        }
+        $storeCurrency = esc_js(get_woocommerce_currency());
+        $publicKey = esc_js($this->getWCTamaraGatewayService()->getPublicKey() ?? '');
+        $siteLocale = esc_js(substr(get_locale(), 0, 2) ?: 'en');
+        $countryCode = esc_js($this->getWCTamaraGatewayService()->getCurrentCountryCode());
+        $ajaxUrl = esc_js(admin_url('admin-ajax.php'));
 
+        $summaryWidgetUrl = $this->getWCTamaraGatewayService()->isLiveMode()
+            ? static::TAMARA_SUMMARY_WIDGET_URL
+            : static::TAMARA_SUMMARY_WIDGET_SANDBOX_URL;
+
+        wp_enqueue_script('tamara-summary-widget', $summaryWidgetUrl, [], $this->version, false);
+
+        $inlineScript = sprintf(
+            'let tamaraCheckoutParams = {"ajaxUrl":"%s","publicKey":"%s","currency":"%s","country":"%s"}; window.tamaraWidgetConfig = {"lang":"%s","country":"%s","publicKey":"%s"};',
+            $ajaxUrl,
+            $publicKey,
+            $storeCurrency,
+            $countryCode,
+            $siteLocale,
+            $countryCode,
+            $publicKey
+        );
+        wp_add_inline_script('tamara-summary-widget', $inlineScript, 'before');
 
         wp_enqueue_style('tamara-checkout', $this->baseUrl.'/assets/dist/css/main.css', [], $this->version . '&' . time());
         wp_enqueue_script('tamara-checkout', $this->baseUrl.'/assets/dist/js/main.js', ['jquery'], $this->version . '&' . time(), true);
@@ -2137,7 +2141,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function getInstalmentPlanAccordingToProductVariation()
     {
-        $variationPrice = filter_input(INPUT_POST, 'variationPrice', FILTER_SANITIZE_STRING);
+        $variationPrice = isset($_POST['variationPrice']) ? sanitize_text_field(wp_unslash($_POST['variationPrice'])) : '';
         if (!empty($variationPrice) && !$this->isWidgetPopupDisabled()) {
             $currency = get_woocommerce_currency();
             // Todo: Handle and re-generate if PDP is not initialized when there is no plan for the smallest variation price

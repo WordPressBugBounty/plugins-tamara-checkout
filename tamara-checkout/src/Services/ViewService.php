@@ -37,24 +37,32 @@ class ViewService
         $extension = '.php';
         // phpcs:ignore WordPress.PHP.DontExtract.extract_extract
         $wp_query->query_vars['viewParams'] = $params;
-        if (strpos($viewFilePath, '/') === 1) {
-            return load_template($viewFilePath . $extension, false);
 
-            // phpcs:ignore PSR2.ControlStructures.ControlStructureSpacing.SpacingAfterOpenBrace
-        } elseif ( ! empty($templateContent = locate_template($viewFilePath . $extension, true, false))) {
-            return $templateContent;
-        } elseif (file_exists($this->basePath . DIRECTORY_SEPARATOR . $viewFilePath . $extension)) {
-            return load_template($this->basePath . DIRECTORY_SEPARATOR . $viewFilePath . $extension, false);
+        if (strpos($viewFilePath, '/') === 1) {
+            $templateFile = $viewFilePath.$extension;
+        } else {
+            $templateFile = locate_template($viewFilePath.$extension, false, false);
+            if (empty($templateFile) && file_exists($this->basePath.DIRECTORY_SEPARATOR.$viewFilePath.$extension)) {
+                $templateFile = $this->basePath.DIRECTORY_SEPARATOR.$viewFilePath.$extension;
+            }
+        }
+
+        if (!empty($templateFile)) {
+            ob_start();
+            load_template($templateFile, false);
+            $renderedContent = ob_get_clean();
+
+            return is_string($renderedContent) ? $renderedContent : '';
         }
 
         $errorMessage = sprintf(
             "View file not working: %s.\nTrace: %s",
-            $viewFilePath . $extension,
+            $viewFilePath.$extension,
             print_r(debug_backtrace(), true)
         );
         // phpcs:ignore WordPress.XSS.EscapeOutput.OutputNotEscaped
         trigger_error($errorMessage, E_USER_WARNING);
 
-        return null;
+        return '';
     }
 }

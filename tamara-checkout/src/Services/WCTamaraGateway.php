@@ -5,6 +5,7 @@ namespace Tamara\Wp\Plugin\Services;
 use DateTimeImmutable;
 use Exception;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Client;
+use Tamara\Wp\Plugin\Dependencies\Tamara\Client\FastTamaraClient;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Configuration;
 use Tamara\Wp\Plugin\Dependencies\Tamara\HttpClient\NyholmHttpAdapter;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Checkout\PaymentOptionsAvailability;
@@ -57,6 +58,8 @@ class WCTamaraGateway extends WC_Payment_Gateway
 
     public const
         DEFAULT_COUNTRY_CODE = 'SA',
+        UAE_COUNTRY_CODE = 'AE',
+        UAE_CURRENCY_CODE = 'AED',
         IPN_SLUG = 'tamara-ipn',
         WEBHOOK_SLUG = 'tamara-webhook',
         TAMARA_CHECKOUT = 'tamara-checkout',
@@ -98,7 +101,13 @@ class WCTamaraGateway extends WC_Payment_Gateway
         PAYMENT_TYPE_PAY_BY_LATER_DEFAULT_TITLE = 'Pay in 30 days without fees with Tamara',
         PAYMENT_TYPE_PAY_BY_LATER_DEFAULT_TITLE_AR = 'اطلب الآن وادفع خلال 30 یوم مع تمارا. بدون رسوم',
         PAYMENT_TYPE_PAY_BY_INSTALMENTS_DEFAULT_TITLE = 'Split into 3 payments, without fees with Tamara',
-        PAYMENT_TYPE_PAY_BY_INSTALMENTS_DEFAULT_TITLE_AR = 'قسّمها على 3 دفعات بدون رسوم مع تمارا';
+        PAYMENT_TYPE_PAY_BY_INSTALMENTS_DEFAULT_TITLE_AR = 'قسّمها على 3 دفعات بدون رسوم مع تمارا',
+        PAYMENT_LABEL_TITLE_EN = 'Tamara',
+        PAYMENT_LABEL_TITLE_AR = 'تمارا',
+        PAYMENT_LABEL_DESCRIPTION_SA_EN = 'Monthly Payments. Sharia Compliant.',
+        PAYMENT_LABEL_DESCRIPTION_SA_AR = 'دفعات شهرية. متوافقة مع الشريعة',
+        PAYMENT_LABEL_DESCRIPTION_AE_EN = 'Monthly Payments.',
+        PAYMENT_LABEL_DESCRIPTION_AE_AR = 'دفعات شهرية';
 
     public $payByLaterEnabled;
     public $payByInstalmentsEnabled;
@@ -111,6 +120,11 @@ class WCTamaraGateway extends WC_Payment_Gateway
      * @var Client $tamaraClient
      */
     public $tamaraClient;
+
+    /**
+     * @var FastTamaraClient $fastTamaraClient
+     */
+    public $fastTamaraClient;
     public $tamaraStatus = [];
     public $webhookEnabled;
     public $beautifyMerchantUrlsEnabled;
@@ -217,10 +231,41 @@ class WCTamaraGateway extends WC_Payment_Gateway
         // Invoke a filter to update description for Tamara Gateway on checkout
         add_filter('woocommerce_gateway_description', [$this, 'renderPaymentTypeDescription'], 9999, 2);
 
-        if (is_order_received_page()) {
-            $this->handleTamaraSuccessOrderReceivedPage();
+        add_action('wp_enqueue_scripts', [$this, 'maybeHandleTamaraSuccessOrderReceivedPage'], 20);
+    }
+
+    /**
+     * Enqueue Tamara success handler on the order received page.
+     * Runs on wp_enqueue_scripts so query vars are available (required for WPML translated checkout URLs).
+     */
+    public function maybeHandleTamaraSuccessOrderReceivedPage()
+    {
+        if (!$this->isTamaraCheckoutOrderReceivedPage()) {
+            return;
         }
 
+        $this->handleTamaraSuccessOrderReceivedPage();
+    }
+
+    /**
+     * Detect WooCommerce order received page, including WPML translated checkout URLs.
+     *
+     * @return bool
+     */
+    protected function isTamaraCheckoutOrderReceivedPage()
+    {
+        global $wp;
+
+        if (is_order_received_page()) {
+            return true;
+        }
+
+        // WPML may break is_page( wc_get_page_id( 'checkout' ) ); the endpoint is still reliable.
+        if (!empty($wp->query_vars['order-received'])) {
+            return true;
+        }
+
+        return false;
     }
 
     public function getPayByLaterTitle()
@@ -299,10 +344,13 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         if ($this->id === $gatewayId) {
             $cartTotal = WC()->cart->total;
+            $paymentLabel = $this->getHardcodedPaymentLabel();
             $description .= TamaraCheckout::getInstance()->getServiceView()->render('views/woocommerce/checkout/tamara-gateway-description',
                 [
-                    'defaultDescription' => $this->populateTamaraDefaultDescription(),
+                    'extraDescription' => $this->populateTamaraDefaultDescription(),
+                    'description' => $paymentLabel['description'],
                     'inlineType' => TamaraCheckout::TAMARA_INLINE_TYPE_CART_WIDGET_INT,
+                    'cartTotal' => $cartTotal,
                 ]);
         }
 
@@ -321,65 +369,59 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function adjustTamaraGatewayOnCheckout($availableGateways)
     {
-		if (is_checkout()) {
-            $cartTotal = TamaraCheckout::getInstance()->getTotalToCalculate(WC()->cart->total);
-            $currentCountryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()];
-            $tamaraExcludedProductItems = TamaraCheckout::getInstance()->getExcludedProductIds() ?? null;
-            $tamaraExcludedProductCategories = TamaraCheckout::getInstance()->getExcludedProductCategoryIds() ?? null;
-			if (!empty($GLOBALS['wp']->query_vars['order-pay'])) {
-				$order = wc_get_order($GLOBALS['wp']->query_vars['order-pay']);
-				$cartItemIds = [];
-				$cartItemCategoryIds = [];
-				foreach ($order->get_items() as $tmpKey => $line_item) {
-					/** @var \WC_Order_Item_Product $line_item */
-					$cartItemIds[] = $line_item->get_product_id();
-					$cartItemCategoryIds = array_merge($cartItemCategoryIds, wc_get_product_cat_ids($line_item->get_product_id()));
-				}
-			} else {
-				$cartItemIds = TamaraCheckout::getInstance()->getAllProductIdsInCart();
-				$cartItemCategoryIds = TamaraCheckout::getInstance()->getAllProductCategoryIdsInCart();
-			}
-			$tamaraExcludedProductItemsInCart = (count(array_intersect(
-                $cartItemIds, $tamaraExcludedProductItems))) ? true : false;
-            $tamaraExcludedProductCategoriesInCart = (count(array_intersect(
-                $cartItemCategoryIds, $tamaraExcludedProductCategories))) ? true : false;
+        if (!is_checkout() || TamaraCheckout::TAMARA_GATEWAY_ID !== $this->id) {
+            return $availableGateways;
+        }
 
-			if ($tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {
-				$availableGateways = array_filter($availableGateways, function($value, $key) {
-					if (strpos($key, 'tamara-gateway') !==false || (!empty($value->id) && strpos($value->id, 'tamara-gateway') !==false)) {
-						return false;
-					}
-
-					return true;
-				}, ARRAY_FILTER_USE_BOTH);
-
-				return $availableGateways;
-			}
-
-            $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? WC()->customer->get_billing_phone();
-            $getAvailableMethod = $this->isMethodAvailableFromRemote($cartTotal, $customerPhone, $currentCountryCode);
-
-			if (!$getAvailableMethod['isMethodAvailable']) {
-                unset($availableGateways[$this->id]);
-            } else {
-                $siteLocale = substr(get_locale(), 0, 2) ?? 'en';
-                if ('ar' === $siteLocale) {
-                    $this->title = $getAvailableMethod['descriptionAr'];
-                } else {
-                    $this->title = $getAvailableMethod['descriptionEn'];
-                }
+        $cartTotal = TamaraCheckout::getInstance()->getTotalToCalculate(WC()->cart->total);
+        $currentCountryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()];
+        $tamaraExcludedProductItems = TamaraCheckout::getInstance()->getExcludedProductIds() ?? null;
+        $tamaraExcludedProductCategories = TamaraCheckout::getInstance()->getExcludedProductCategoryIds() ?? null;
+        if (!empty($GLOBALS['wp']->query_vars['order-pay'])) {
+            $order = wc_get_order($GLOBALS['wp']->query_vars['order-pay']);
+            $cartItemIds = [];
+            $cartItemCategoryIds = [];
+            foreach ($order->get_items() as $tmpKey => $line_item) {
+                /** @var \WC_Order_Item_Product $line_item */
+                $cartItemIds[] = $line_item->get_product_id();
+                $cartItemCategoryIds = array_merge($cartItemCategoryIds, wc_get_product_cat_ids($line_item->get_product_id()));
             }
+        } else {
+            $cartItemIds = TamaraCheckout::getInstance()->getAllProductIdsInCart();
+            $cartItemCategoryIds = TamaraCheckout::getInstance()->getAllProductCategoryIdsInCart();
+        }
+        $tamaraExcludedProductItemsInCart = (count(array_intersect(
+            $cartItemIds, $tamaraExcludedProductItems))) ? true : false;
+        $tamaraExcludedProductCategoriesInCart = (count(array_intersect(
+            $cartItemCategoryIds, $tamaraExcludedProductCategories))) ? true : false;
 
-			$paymentOptions = TamaraCheckout::getInstance()->getPaymentOptions($cartTotal, $customerPhone, $currentCountryCode) ?: [];
-			$availableRemotePaymentTypes = wp_list_pluck((array) $paymentOptions, 'payment_type');
+        if ($tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {
+            $availableGateways = array_filter($availableGateways, function($value, $key) {
+                if (strpos($key, 'tamara-gateway') !==false || (!empty($value->id) && strpos($value->id, 'tamara-gateway') !==false)) {
+                    return false;
+                }
 
-			$availableGateways = array_filter($availableGateways, function($value, $key) use ($availableRemotePaymentTypes) {
-				if ($key === 'tamara-gateway-checkout' && !in_array('PAY_BY_INSTALMENTS', $availableRemotePaymentTypes)) {
-					return false;
-				}
+                return true;
+            }, ARRAY_FILTER_USE_BOTH);
 
-				return true;
-			}, ARRAY_FILTER_USE_BOTH);
+            return $availableGateways;
+        }
+
+        $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? WC()->customer->get_billing_phone();
+        $customerEmail = WC()->customer->get_billing_email() ?? '';
+        $isEligible = TamaraCheckout::getInstance()->isCustomerEligibleForPreCheckout(
+            $cartTotal,
+            $customerPhone,
+            $currentCountryCode,
+            $customerEmail,
+            WP_DEBUG ? false : true
+        );
+
+        if (!$isEligible) {
+            unset($availableGateways[$this->id]);
+        } else {
+            $paymentLabel = $this->getHardcodedPaymentLabel();
+            $this->title = $paymentLabel['title'];
         }
 
         return $availableGateways;
@@ -1733,15 +1775,14 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $this->order_button_text = __('Proceed to Tamara Payment', 'tamara-checkout');
         $this->method_title = __('Tamara Gateway', 'tamara-checkout');
         $this->method_description = __('Pay Later with Tamara', 'tamara-checkout');
+        $this->description = '';
         $this->errorMap = $this->getErrorMap();
         $this->paymentType = static::PAYMENT_TYPE_PAY_BY_LATER;
         if (is_admin()) {
-            $this->title = static::TAMARA_GATEWAY_DEFAULT_TITLE;
+            $this->title = static::PAYMENT_LABEL_TITLE_EN;
         } else {
-            $payment_title_mapping = $this->getPaymentTypeTitleMapping();
-            $payment_title = $payment_title_mapping[$this->id] ?? static::TAMARA_GATEWAY_DEFAULT_TITLE;
-            // Use the title directly without translation since it comes from dynamic mapping
-            $this->title = $payment_title;
+            $paymentLabel = $this->getHardcodedPaymentLabel();
+            $this->title = $paymentLabel['title'];
         }
     }
 
@@ -1758,7 +1799,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $this->payByLaterEnabled = $this->get_option('pay_by_later_enabled', 'no');
         $this->payByInstalmentsEnabled = $this->get_option('pay_by_instalments_enabled', 'no');
         $this->customLogMessageEnabled = $this->get_option('custom_log_message_enabled', 'no');
-        $this->popupWidgetPosition = $this->get_option('popup_widget_position', 'woocommerce_single_product_summary');
+        $this->popupWidgetPosition = $this->get_option('popup_widget_position', 'woocommerce_before_add_to_cart_form');
         $this->webhookEnabled = $this->get_option('webhook_enabled', 'no');
         $this->beautifyMerchantUrlsEnabled = $this->get_option('beautify_merchant_urls', 'no');
         $this->webhookId = $this->get_option('webhook_id');
@@ -1783,6 +1824,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
             $this->publicKey = $this->get_option('sandbox_public_key', null);
         }
         $this->tamaraClient = $this->buildTamaraClient($this->apiUrl, $this->apiToken);
+        $this->fastTamaraClient = $this->buildFastTamaraClient($this->apiUrl, $this->apiToken);
     }
 
     /**
@@ -2062,18 +2104,67 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function getPaymentTypeTitleMapping($instalment = null)
     {
+        $paymentLabel = $this->getHardcodedPaymentLabel();
         $siteLocale = substr(get_locale(), 0, 2) ?? 'en';
-        if ('ar' === $siteLocale) {
+        $payInXTitle = ('ar' === $siteLocale)
+            ? $this->getPayInXTitleAr($instalment)
+            : $this->getPayInXTitle($instalment);
+
+        return [
+            TamaraCheckout::TAMARA_GATEWAY_ID => $paymentLabel['title'],
+            'tamara-gateway-pay-in-'.$instalment => $payInXTitle,
+        ];
+    }
+
+    /**
+     * Return hardcoded Tamara payment label and description for checkout.
+     *
+     * @return array
+     */
+    public function getHardcodedPaymentLabel($countryCode = null)
+    {
+        $siteLocale = substr(get_locale(), 0, 2) ?? 'en';
+        $isArabic = 'ar' === $siteLocale;
+        if (!$countryCode) {
+            $countryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()] ?? $this->getDefaultBillingCountryCode();
+            if (function_exists('WC') && WC()->customer && WC()->customer->get_billing_country()) {
+                $countryCode = WC()->customer->get_billing_country();
+            }
+        }
+
+        $isUae = static::UAE_COUNTRY_CODE === $countryCode
+            || static::UAE_CURRENCY_CODE === get_woocommerce_currency();
+
+        if ($isArabic) {
             return [
-                TamaraCheckout::TAMARA_GATEWAY_ID => $this->getPayByLaterTitleAr(),
-                'tamara-gateway-pay-in-'.$instalment => $this->getPayInXTitleAr($instalment),
-            ];
-        } else {
-            return [
-                TamaraCheckout::TAMARA_GATEWAY_ID => $this->getPayByLaterTitle(),
-                'tamara-gateway-pay-in-'.$instalment => $this->getPayInXTitle($instalment),
+                'title' => static::PAYMENT_LABEL_TITLE_AR,
+                'description' => $isUae ? static::PAYMENT_LABEL_DESCRIPTION_AE_AR : static::PAYMENT_LABEL_DESCRIPTION_SA_AR,
             ];
         }
+
+        return [
+            'title' => static::PAYMENT_LABEL_TITLE_EN,
+            'description' => $isUae ? static::PAYMENT_LABEL_DESCRIPTION_AE_EN : static::PAYMENT_LABEL_DESCRIPTION_SA_EN,
+        ];
+    }
+
+    /**
+     * Build cache key for Tamara Pre-Checkout Eligibility API.
+     *
+     * @return string
+     */
+    public function buildPreCheckoutEligibilityCacheKey($cartTotal, $customerPhone, $countryCode, $customerEmail = '')
+    {
+        $saltArr = [
+            $this->apiToken,
+            $this->apiUrl,
+            $cartTotal,
+            $customerPhone,
+            $countryCode,
+            $customerEmail,
+        ];
+
+        return 'tamara_pre_checkout_eligibility_'.md5(json_encode($saltArr));
     }
 
     /**
@@ -2126,6 +2217,19 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $transport = new NyholmHttpAdapter($requestTimeout, $logger);
 
         return Client::create(Configuration::create($apiUrl, $apiToken, $requestTimeout, $logger, $transport));
+    }
+
+    /**
+     * @param string $apiUrl
+     * @param string $apiToken
+     *
+     * @return FastTamaraClient
+     */
+    protected function buildFastTamaraClient($apiUrl, $apiToken)
+    {
+        $apiUrl = TamaraCheckout::getInstance()->removeTrailingSlashes($apiUrl);
+
+        return new FastTamaraClient($apiUrl, $apiToken);
     }
 
     /**

@@ -5,9 +5,10 @@ namespace Tamara\Wp\Plugin\Traits;
 
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Checkout\PaymentOptionsAvailability;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Money;
+use Tamara\Wp\Plugin\Dependencies\Tamara\Model\FastTamara\FastTamaraEligibility;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Checkout\CheckPaymentOptionsAvailabilityRequest;
+use Tamara\Wp\Plugin\Dependencies\Tamara\Request\FastTamara\FastTamaraEligibilityRequest;
 use Tamara\Wp\Plugin\Services\WCTamaraGateway;
-use Tamara\Wp\Plugin\TamaraCheckout;
 use Exception;
 
 trait TamaraPaymentTypesTrait
@@ -599,5 +600,70 @@ trait TamaraPaymentTypesTrait
         }
 
         return $paymentOptions;
+    }
+
+    /**
+     * Check customer eligibility via Tamara Pre-Checkout Eligibility API.
+     * Defaults to eligible when phone is missing, on timeout, or on API error.
+     *
+     * @param $cartTotal
+     * @param $customerPhone
+     * @param $countryCode
+     * @param string $customerEmail
+     * @param bool $getFromCache
+     *
+     * @return bool
+     */
+    public function isCustomerEligibleForPreCheckout($cartTotal, $customerPhone, $countryCode, $customerEmail = '', $getFromCache = true)
+    {
+        if (empty($customerPhone)) {
+            return true;
+        }
+
+        /** @var WCTamaraGateway $wcTamaraGateway */
+        $wcTamaraGateway = $this->getWCTamaraGatewayService();
+        $cacheKey = $wcTamaraGateway->buildPreCheckoutEligibilityCacheKey($cartTotal, $customerPhone, $countryCode, $customerEmail);
+
+        if ($getFromCache) {
+            $cachedEligibility = get_transient($cacheKey);
+            if (false !== $cachedEligibility) {
+                return (bool) $cachedEligibility;
+            }
+        }
+
+        $currencyByCountryCode = array_flip($wcTamaraGateway->getCurrencyToCountryMapping());
+        $currency = $currencyByCountryCode[$countryCode] ?? get_woocommerce_currency();
+
+        $fastTamaraEligibility = (new FastTamaraEligibility())
+            ->setAmount((float) $cartTotal)
+            ->setCurrency((string) $currency)
+            ->setPhoneNumber( (string) $customerPhone)
+            ->setEmail((string) $customerEmail);
+
+        try {
+            $fastTamaraEligibilityRequest = new FastTamaraEligibilityRequest($fastTamaraEligibility);
+            $response = $wcTamaraGateway->fastTamaraClient->checkEligibility($fastTamaraEligibilityRequest);
+
+            if ($response->isSuccess()) {
+                $isEligible = $response->isEligible();
+                set_transient($cacheKey, $isEligible ? 1 : 0, 600);
+
+                return $isEligible;
+            }
+
+            $this->logMessage(
+                sprintf("Tamara Pre-Checkout Eligibility Check Failed.\nError message: '%s'", $response->getMessage())
+            );
+        } catch (Exception $exception) {
+            $this->logMessage(
+                sprintf(
+                    "Tamara Pre-Checkout Eligibility Check Failed.\nError message: '%s'.\nTrace: %s",
+                    $exception->getMessage(),
+                    $exception->getTraceAsString()
+                )
+            );
+        }
+
+        return true;
     }
 }
