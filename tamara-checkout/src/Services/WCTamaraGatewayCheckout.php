@@ -46,7 +46,7 @@ class WCTamaraGatewayCheckout extends WCTamaraGateway
     public function renderPaymentTypeDescription($description, $gatewayId)
     {
         if ($this->id === $gatewayId) {
-            $cartTotal = WC()->cart->total;
+            $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
             $description .= TamaraCheckout::getInstance()->getServiceView()->render('views/woocommerce/checkout/tamara-gateway-checkout-description',
                 [
                     'cartTotal' => $cartTotal,
@@ -71,7 +71,7 @@ class WCTamaraGatewayCheckout extends WCTamaraGateway
     public function adjustTamaraGatewayOnCheckout($availableGateways)
     {
         if (is_checkout()) {
-            $cartTotal = TamaraCheckout::getInstance()->getTotalToCalculate(WC()->cart->total);
+            $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
             $currentCountryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()];
             $tamaraExcludedProductItems = TamaraCheckout::getInstance()->getExcludedProductIds() ?? null;
             $tamaraExcludedProductCategories = TamaraCheckout::getInstance()->getExcludedProductCategoryIds() ?? null;
@@ -81,7 +81,7 @@ class WCTamaraGatewayCheckout extends WCTamaraGateway
                 $cartItemIds, $tamaraExcludedProductItems))) ? true : false;
             $tamaraExcludedProductCategoriesInCart = (count(array_intersect(
                 $cartItemCategoryIds, $tamaraExcludedProductCategories))) ? true : false;
-            $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? WC()->customer->get_billing_phone();
+            $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? (WC()->customer ? WC()->customer->get_billing_phone() : '');
 
             if (!TamaraCheckout::getInstance()->hasAvailablePaymentOptions($cartTotal, $customerPhone, $currentCountryCode)
                 || $tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {

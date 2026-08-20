@@ -371,7 +371,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
     public function renderPaymentTypeDescription($description, $gatewayId)
     {
         if ($this->id === $gatewayId) {
-            $cartTotal = WC()->cart->total;
+            $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
             $paymentLabel = $this->getHardcodedPaymentLabel();
             $description .= TamaraCheckout::getInstance()->getServiceView()->render('views/woocommerce/checkout/tamara-gateway-description',
                 [
@@ -401,7 +401,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
             return $availableGateways;
         }
 
-        $cartTotal = TamaraCheckout::getInstance()->getTotalToCalculate(WC()->cart->total);
+        $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
         $currentCountryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()];
         $tamaraExcludedProductItems = TamaraCheckout::getInstance()->getExcludedProductIds() ?? null;
         $tamaraExcludedProductCategories = TamaraCheckout::getInstance()->getExcludedProductCategoryIds() ?? null;
@@ -435,8 +435,8 @@ class WCTamaraGateway extends WC_Payment_Gateway
             return $availableGateways;
         }
 
-        $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? WC()->customer->get_billing_phone();
-        $customerEmail = WC()->customer->get_billing_email() ?? '';
+        $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? (WC()->customer ? WC()->customer->get_billing_phone() : '');
+        $customerEmail = WC()->customer ? (WC()->customer->get_billing_email() ?? '') : '';
         $isEligible = TamaraCheckout::getInstance()->isCustomerEligibleForPreCheckout(
             $cartTotal,
             $customerPhone,
@@ -809,17 +809,18 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $merchantUrl = new MerchantUrl();
 
         $orderId = $wcOrder->get_id();
+        $tamaraCheckout = TamaraCheckout::getInstance();
 
         $tamaraSuccessUrl = $this->getTamaraSuccessUrl($wcOrder, [
             'wcOrderId' => $orderId,
             'paymentMethod' => static::TAMARA_CHECKOUT,
         ]);
-        $tamaraCancelUrl = $this->getTamaraCancelUrl([
-            'wcOrderId' => $orderId,
-        ]);
-        $tamaraFailureUrl = $this->getTamaraFailureUrl([
-            'wcOrderId' => $orderId,
-        ]);
+        $tamaraCancelUrl = $this->getTamaraCancelUrl(
+            $tamaraCheckout->getPaymentReturnAuthParams($wcOrder, 'cancel')
+        );
+        $tamaraFailureUrl = $this->getTamaraFailureUrl(
+            $tamaraCheckout->getPaymentReturnAuthParams($wcOrder, 'fail')
+        );
 
         $merchantUrl->setSuccessUrl($tamaraSuccessUrl);
         $merchantUrl->setFailureUrl($tamaraFailureUrl);
@@ -2869,9 +2870,9 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function countInstalmentPlans()
     {
-        $cartTotal = TamaraCheckout::getInstance()->getTotalToCalculate(WC()->cart->total);
+        $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
         $currentCountryCode = $this->getCurrencyToCountryMapping()[get_woocommerce_currency()] ?? $this->getDefaultBillingCountryCode();
-        $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? WC()->customer->get_billing_phone();
+        $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? (WC()->customer ? WC()->customer->get_billing_phone() : '');
         $paymentOptions = TamaraCheckout::getInstance()->getPaymentOptions($cartTotal, $customerPhone, $currentCountryCode) ?? [];
         $paymentOptionsCount = 0;
         if (!empty($paymentOptions)) {

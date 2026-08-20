@@ -927,9 +927,12 @@ class TamaraCheckout extends Container implements WPPluginInterface
     protected function preventOrderCancelAction($wcOrder, $wcOrderId)
     {
         $orderNote = 'This order can not be cancelled because the payment was authorised from Tamara. Order ID: '.$wcOrderId;
-        $wcOrder->add_order_note($orderNote);
+        if ($wcOrder instanceof \WC_Order) {
+            $wcOrder->add_order_note($orderNote);
+        }
         $this->logMessage($orderNote);
-        wp_redirect(wc_get_cart_url());
+        wp_safe_redirect(wc_get_cart_url());
+        exit;
     }
 
     /**
@@ -1035,7 +1038,19 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function tamaraAuthoriseHandler()
     {
-        $wcOrderId = filter_input(INPUT_POST, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT);
+        $wcOrderId = absint(filter_input(INPUT_POST, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT));
+        $orderKey = isset($_POST['order']) ? wc_clean(wp_unslash($_POST['order'])) : '';
+        $wcOrder = $wcOrderId ? wc_get_order($wcOrderId) : false;
+
+        if (!$this->verifyOrderOwnership($wcOrder, $orderKey) || !$this->isTamaraGateway($wcOrder->get_payment_method())) {
+            wp_send_json(
+                [
+                    'message' => 'authorise_failed',
+                ],
+                403
+            );
+        }
+
         $authoriseSuccessResponse = [
             'message' => 'authorise_success',
         ];
@@ -1056,10 +1071,132 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function doAuthoriseOrderAction()
     {
-        $wcOrderId = filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT);
-        $wcOrderId || $wcOrderId = filter_input(INPUT_POST, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT);
+        $wcOrderId = absint(filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT));
+        $wcOrderId || $wcOrderId = absint(filter_input(INPUT_POST, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT));
+        $orderKey = isset($_REQUEST['order']) ? wc_clean(wp_unslash($_REQUEST['order'])) : '';
+        $wcOrder = $wcOrderId ? wc_get_order($wcOrderId) : false;
+
+        if (!$this->verifyOrderOwnership($wcOrder, $orderKey) || !$this->isTamaraGateway($wcOrder->get_payment_method())) {
+            return;
+        }
 
         $this->authoriseOrder($wcOrderId);
+    }
+
+    /**
+     * Build auth query args for public Tamara payment return URLs.
+     *
+     * Uses WooCommerce order key plus a long-lived HMAC (and WC cancel nonce) so return
+     * requests can be proven to belong to the checkout that created the merchant URL.
+     *
+     * @param WC_Order $wcOrder
+     * @param string   $action cancel|fail|authorise
+     *
+     * @return array
+     */
+    public function getPaymentReturnAuthParams($wcOrder, $action)
+    {
+        $orderId = $wcOrder->get_id();
+        $orderKey = $wcOrder->get_order_key();
+
+        return [
+            'wcOrderId' => $orderId,
+            'order' => $orderKey,
+            'tamara_sig' => $this->createPaymentReturnSignature($orderId, $orderKey, $action),
+            '_wpnonce' => wp_create_nonce('woocommerce-cancel_order'),
+        ];
+    }
+
+    /**
+     * Create HMAC signature for a payment return URL.
+     *
+     * @param int    $orderId
+     * @param string $orderKey
+     * @param string $action
+     *
+     * @return string
+     */
+    public function createPaymentReturnSignature($orderId, $orderKey, $action)
+    {
+        return hash_hmac(
+            'sha256',
+            absint($orderId).'|'.(string) $orderKey.'|'.(string) $action,
+            wp_salt('nonce')
+        );
+    }
+
+    /**
+     * Verify order key matches the WooCommerce order.
+     *
+     * @param WC_Order|false|null $wcOrder
+     * @param string              $orderKey
+     *
+     * @return bool
+     */
+    public function verifyOrderOwnership($wcOrder, $orderKey)
+    {
+        if (!$wcOrder instanceof \WC_Order || $orderKey === '') {
+            return false;
+        }
+
+        return hash_equals($wcOrder->get_order_key(), (string) $orderKey);
+    }
+
+    /**
+     * Verify a public cancel/fail return request belongs to the order.
+     *
+     * Requires a matching order key and either a valid HMAC signature or WC cancel nonce.
+     *
+     * @param WC_Order $wcOrder
+     * @param string   $action
+     *
+     * @return bool
+     */
+    public function verifyPaymentReturnRequest($wcOrder, $action)
+    {
+        $orderKey = isset($_GET['order']) ? wc_clean(wp_unslash($_GET['order'])) : '';
+        if (!$this->verifyOrderOwnership($wcOrder, $orderKey)) {
+            return false;
+        }
+
+        $sig = isset($_GET['tamara_sig']) ? wc_clean(wp_unslash($_GET['tamara_sig'])) : '';
+        if ($sig !== '') {
+            $expected = $this->createPaymentReturnSignature($wcOrder->get_id(), $wcOrder->get_order_key(), $action);
+            if (hash_equals($expected, $sig)) {
+                return true;
+            }
+        }
+
+        if (
+            isset($_GET['_wpnonce']) &&
+            wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'woocommerce-cancel_order')
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether an order may be moved to Tamara cancelled/failed from a public return URL.
+     *
+     * @param WC_Order $wcOrder
+     *
+     * @return bool
+     */
+    protected function canPubliclyCancelOrFailOrder($wcOrder)
+    {
+        if (!$this->isTamaraGateway($wcOrder->get_payment_method())) {
+            return false;
+        }
+
+        $validStatuses = apply_filters(
+            'woocommerce_valid_order_statuses_for_cancel',
+            ['pending', 'failed'],
+            $wcOrder
+        );
+
+        return $wcOrder->has_status($validStatuses);
     }
 
     /**
@@ -1115,27 +1252,39 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function handleTamaraCancelUrl()
     {
-        $orderId = filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT);
-        $wcOrder = wc_get_order($orderId);
+        $orderId = absint(filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT));
+        $wcOrder = $orderId ? wc_get_order($orderId) : false;
+
+        if (!$wcOrder || !$this->verifyPaymentReturnRequest($wcOrder, 'cancel')) {
+            wp_safe_redirect(wc_get_cart_url());
+            exit;
+        }
+
         if ($this->isOrderAuthorised($orderId)) {
             $this->preventOrderCancelAction($wcOrder, $orderId);
-        } elseif (!empty($orderId)) {
-            $newOrderStatus = $this->getWCTamaraGatewayService()->tamaraStatus['payment_cancelled'];
-            $orderNote = 'The payment for this order has been cancelled from Tamara.';
-            $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
-            $cancelUrlFromTamara = add_query_arg(
-                [
-                    'tamara_custom_status' => 'tamara-p-canceled',
-                    'redirect_from' => 'tamara',
-                    'cancel_order' => 'true',
-                    'order' => $wcOrder->get_order_key(),
-                    'order_id' => $orderId,
-                    '_wpnonce' => wp_create_nonce('woocommerce-cancel_order'),
-                ],
-                $wcOrder->get_cancel_order_url_raw()
-            );
-            wp_redirect($cancelUrlFromTamara);
         }
+
+        if (!$this->canPubliclyCancelOrFailOrder($wcOrder)) {
+            wp_safe_redirect(wc_get_cart_url());
+            exit;
+        }
+
+        $newOrderStatus = $this->getWCTamaraGatewayService()->tamaraStatus['payment_cancelled'];
+        $orderNote = 'The payment for this order has been cancelled from Tamara.';
+        $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
+        $cancelUrlFromTamara = add_query_arg(
+            [
+                'tamara_custom_status' => 'tamara-p-canceled',
+                'redirect_from' => 'tamara',
+                'cancel_order' => 'true',
+                'order' => $wcOrder->get_order_key(),
+                'order_id' => $orderId,
+                '_wpnonce' => wp_create_nonce('woocommerce-cancel_order'),
+            ],
+            $wcOrder->get_cancel_order_url_raw()
+        );
+        wp_safe_redirect($cancelUrlFromTamara);
+        exit;
     }
 
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
@@ -1146,27 +1295,39 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function handleTamaraFailureUrl()
     {
-        $orderId = filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT);
-        $wcOrder = wc_get_order($orderId);
+        $orderId = absint(filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT));
+        $wcOrder = $orderId ? wc_get_order($orderId) : false;
+
+        if (!$wcOrder || !$this->verifyPaymentReturnRequest($wcOrder, 'fail')) {
+            wp_safe_redirect(wc_get_cart_url());
+            exit;
+        }
+
         if ($this->isOrderAuthorised($orderId)) {
             $this->preventOrderCancelAction($wcOrder, $orderId);
-        } elseif (!empty($orderId)) {
-            $newOrderStatus = $this->getWCTamaraGatewayService()->tamaraStatus['payment_failed'];
-            $orderNote = 'The payment for this order has been declined from Tamara.';
-            $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
-            $failureUrlFromTamara = add_query_arg(
-                [
-                    'tamara_custom_status' => 'tamara-p-failed',
-                    'redirect_from' => 'tamara',
-                    'cancel_order' => 'true',
-                    'order' => $wcOrder->get_order_key(),
-                    'order_id' => $orderId,
-                    '_wpnonce' => wp_create_nonce('woocommerce-cancel_order'),
-                ],
-                $wcOrder->get_cancel_order_url_raw()
-            );
-            wp_redirect($failureUrlFromTamara);
         }
+
+        if (!$this->canPubliclyCancelOrFailOrder($wcOrder)) {
+            wp_safe_redirect(wc_get_cart_url());
+            exit;
+        }
+
+        $newOrderStatus = $this->getWCTamaraGatewayService()->tamaraStatus['payment_failed'];
+        $orderNote = 'The payment for this order has been declined from Tamara.';
+        $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
+        $failureUrlFromTamara = add_query_arg(
+            [
+                'tamara_custom_status' => 'tamara-p-failed',
+                'redirect_from' => 'tamara',
+                'cancel_order' => 'true',
+                'order' => $wcOrder->get_order_key(),
+                'order_id' => $orderId,
+                '_wpnonce' => wp_create_nonce('woocommerce-cancel_order'),
+            ],
+            $wcOrder->get_cancel_order_url_raw()
+        );
+        wp_safe_redirect($failureUrlFromTamara);
+        exit;
     }
 
     /**
@@ -1678,6 +1839,22 @@ class TamaraCheckout extends Container implements WPPluginInterface
         return $amount;
     }
 
+    /**
+     * Safely read the current cart/order total for display and eligibility checks.
+     * WC()->cart can be null outside storefront requests (REST, cron, admin, early hooks).
+     *
+     * @return float|int|string
+     */
+    public function getCartTotal()
+    {
+        $cartTotal = 0;
+        if (function_exists('WC') && WC() && WC()->cart) {
+            $cartTotal = WC()->cart->total;
+        }
+
+        return $this->getTotalToCalculate($cartTotal);
+    }
+
     /** @noinspection PhpFullyQualifiedNameUsageInspection */
     /**
      * Update Tamara checkout data to order meta data created via rest api
@@ -1794,6 +1971,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     {
         $ajaxCronjobUrl = esc_attr(add_query_arg([
             'action' => 'tamara_perform_cron',
+            '_wpnonce' => wp_create_nonce('tamara_perform_cron'),
         ], admin_url('admin-ajax.php')));
 
 		$sectionSlug = isset($_GET['section']) ? esc_attr(sanitize_text_field(wp_unslash($_GET['section']))) : '';
@@ -1822,15 +2000,18 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function performCron()
     {
-        if (current_user_can('publish_posts')) {
-            $this->forceAuthoriseTamaraOrder();
-            $this->forceCaptureTamaraOrder();
-
-            return json_encode(true);
+        if (
+            !current_user_can('manage_woocommerce') ||
+            !isset($_GET['_wpnonce']) ||
+            !wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'tamara_perform_cron')
+        ) {
+            wp_send_json_error(['message' => 'forbidden'], 403);
         }
 
-        return json_encode(false);
+        $this->forceAuthoriseTamaraOrder();
+        $this->forceCaptureTamaraOrder();
 
+        return json_encode(true);
     }
 
     /**

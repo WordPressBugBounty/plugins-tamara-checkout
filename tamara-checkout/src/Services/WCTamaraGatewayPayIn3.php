@@ -27,7 +27,7 @@ class WCTamaraGatewayPayIn3 extends WCTamaraGatewayPayByInstalments
     public function renderPaymentTypeDescription($description, $gatewayId)
     {
         if ($this->id === $gatewayId) {
-            $cartTotal = WC()->cart->total;
+            $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
             $description .= TamaraCheckout::getInstance()->getServiceView()->render('views/woocommerce/checkout/tamara-gateway-pay-by-3-description',
                 [
                     'cartTotal' => $cartTotal,

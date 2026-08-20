@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.20
+Stable tag: 1.9.9.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,18 @@ You can find out more how to install and use the plugin with our user guides doc
 * Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
+
+= 1.9.9.21 - 2026-08-17 =
+
+Security:
+
+* Fix unauthenticated order status changes on tamara-payment-cancel and tamara-payment-fail by requiring order key and request signature (reported by Ezekiel Victor)
+* Require order key for Tamara authorise AJAX and shortcode actions
+* Harden cron AJAX with manage_woocommerce capability and nonce checks
+
+Enhancements:
+
+* Update Tested up to WordPress 7.0
 
 = 1.9.9.20 - 2026-06-20 =
 

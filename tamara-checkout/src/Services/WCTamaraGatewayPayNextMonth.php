@@ -42,7 +42,7 @@ class WCTamaraGatewayPayNextMonth extends WCTamaraGateway
     public function renderPaymentTypeDescription($description, $gatewayId)
     {
         if ($this->id === $gatewayId) {
-            $cartTotal = WC()->cart->total;
+            $cartTotal = TamaraCheckout::getInstance()->getCartTotal();
             $description .= TamaraCheckout::getInstance()->getServiceView()->render('views/woocommerce/checkout/tamara-gateway-pay-next-month-description',
                 [
                     'defaultDescription' => $this->populateTamaraDefaultDescription(),
