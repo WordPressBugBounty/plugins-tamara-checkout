@@ -6,6 +6,7 @@ use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Money;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Checkout\PaymentOptionsAvailability;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Checkout\CheckPaymentOptionsAvailabilityRequest;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Response\Checkout\CheckPaymentOptionsAvailabilityResponse;
+use Tamara\Wp\Plugin\Helpers\PhoneHelper;
 use Tamara\Wp\Plugin\TamaraCheckout;
 use Tamara\Wp\Plugin\Traits\ConfigTrait;
 use Tamara\Wp\Plugin\Traits\ServiceTrait;
@@ -82,6 +83,17 @@ class WCTamaraGatewayCheckout extends WCTamaraGateway
             $tamaraExcludedProductCategoriesInCart = (count(array_intersect(
                 $cartItemCategoryIds, $tamaraExcludedProductCategories))) ? true : false;
             $customerPhone = TamaraCheckout::getInstance()->getCustomerPhoneNumber() ?? (WC()->customer ? WC()->customer->get_billing_phone() : '');
+
+            // Hide Tamara when billing country is not KSA (SA) or UAE (AE), including initial checkout form data.
+            $billingCountry = TamaraCheckout::getInstance()->getCustomerBillingCountry();
+            if (empty($billingCountry)) {
+                $billingCountry = $this->getDefaultBillingCountryCode();
+            }
+            if (!PhoneHelper::isQualifiedCountry($billingCountry)) {
+                unset($availableGateways[$this->id]);
+
+                return $availableGateways;
+            }
 
             if (!TamaraCheckout::getInstance()->hasAvailablePaymentOptions($cartTotal, $customerPhone, $currentCountryCode)
                 || $tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {

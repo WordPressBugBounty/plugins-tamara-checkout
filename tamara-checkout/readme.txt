@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.21
+Stable tag: 1.9.9.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,14 @@ You can find out more how to install and use the plugin with our user guides doc
 * Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
+
+= 1.9.9.22 - 2026-08-30 =
+
+Enhancements:
+
+* Format phone numbers for the pre-checkout eligibility API as country dial code + national number (without leading zeros)
+* Derive missing phone country dial codes from the checkout billing country
+* Hide Tamara on checkout when billing country is not KSA (SA) or UAE (AE), including on initial form load
 
 = 1.9.9.21 - 2026-08-17 =
 

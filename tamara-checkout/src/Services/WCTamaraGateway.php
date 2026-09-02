@@ -34,6 +34,7 @@ use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Webhook\RemoveWebhookRequest;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Response\Checkout\GetPaymentTypesResponse;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Response\Payment\CaptureResponse;
 use Tamara\Wp\Plugin\Helpers\MoneyHelper;
+use Tamara\Wp\Plugin\Helpers\PhoneHelper;
 use Tamara\Wp\Plugin\TamaraCheckout;
 use Tamara\Wp\Plugin\Traits\ConfigTrait;
 use Tamara\Wp\Plugin\Traits\ServiceTrait;
@@ -426,6 +427,23 @@ class WCTamaraGateway extends WC_Payment_Gateway
         if ($tamaraExcludedProductItemsInCart || $tamaraExcludedProductCategoriesInCart) {
             $availableGateways = array_filter($availableGateways, function($value, $key) {
                 if (strpos($key, 'tamara-gateway') !==false || (!empty($value->id) && strpos($value->id, 'tamara-gateway') !==false)) {
+                    return false;
+                }
+
+                return true;
+            }, ARRAY_FILTER_USE_BOTH);
+
+            return $availableGateways;
+        }
+
+        // Hide Tamara when billing country is not KSA (SA) or UAE (AE), including initial checkout form data.
+        $billingCountry = TamaraCheckout::getInstance()->getCustomerBillingCountry();
+        if (empty($billingCountry)) {
+            $billingCountry = $this->getDefaultBillingCountryCode();
+        }
+        if (!PhoneHelper::isQualifiedCountry($billingCountry)) {
+            $availableGateways = array_filter($availableGateways, function ($value, $key) {
+                if (strpos($key, 'tamara-gateway') !== false || (!empty($value->id) && strpos($value->id, 'tamara-gateway') !== false)) {
                     return false;
                 }
 

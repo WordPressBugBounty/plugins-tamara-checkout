@@ -105,6 +105,11 @@ class TamaraCheckout extends Container implements WPPluginInterface
     protected $customerPhoneNumber;
 
     /**
+     * @var string The customer billing country on checkout (ISO 3166-1 alpha-2)
+     */
+    protected $customerBillingCountry;
+
+    /**
      * Tamara_Checkout constructor.
      *
      * @param $config
@@ -1825,15 +1830,9 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function getTotalToCalculate($amount)
     {
-        if (is_checkout_pay_page()) {
-            global $wp;
-            if (isset($wp->query_vars['order-pay']) && absint($wp->query_vars['order-pay']) > 0) {
-                $orderId = absint($wp->query_vars['order-pay']);
-                $wcOrder = wc_get_order($orderId);
-                if ($wcOrder) {
-                    return $wcOrder->get_total();
-                }
-            }
+        $wcOrder = $this->getOrderPayOrder();
+        if ($wcOrder) {
+            return $wcOrder->get_total();
         }
 
         return $amount;
@@ -2441,7 +2440,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     }
 
     /**
-     * Update phone number on every ajax calls on checkout
+     * Update phone number and billing country on every ajax call on checkout
      *
      * @param $postedData
      *
@@ -2449,28 +2448,150 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function getUpdatedPhoneNumberOnCheckout($postedData)
     {
-        global $woocommerce;
-
         // Parsing posted data on checkout
         $post = array();
         $vars = explode('&', $postedData);
         foreach ($vars as $k => $value) {
             $v = explode('=', urldecode($value));
-            $post[$v[0]] = $v[1];
+            $post[$v[0]] = $v[1] ?? '';
         }
 
-        // Update phone number get from posted data
-        $this->customerPhoneNumber = $post['billing_phone'];
+        // Update phone number and billing country from posted data
+        $this->customerPhoneNumber = $post['billing_phone'] ?? '';
+        $this->customerBillingCountry = isset($post['billing_country']) ? strtoupper($post['billing_country']) : '';
     }
 
     /**
-     * Return customer phone number
+     * Return customer phone number from checkout POST, order-pay order, or WC customer.
      *
-     * @return string
+     * @return string|null
      */
     public function getCustomerPhoneNumber()
     {
+        if (!empty($this->customerPhoneNumber)) {
+            return $this->customerPhoneNumber;
+        }
+
+        $order = $this->getOrderPayOrder();
+        if ($order && $order->get_billing_phone()) {
+            return $order->get_billing_phone();
+        }
+
+        if (function_exists('WC') && WC()->customer && WC()->customer->get_billing_phone()) {
+            return WC()->customer->get_billing_phone();
+        }
+
         return $this->customerPhoneNumber;
+    }
+
+    /**
+     * Return customer billing country from checkout POST, order-pay order, or WC customer.
+     *
+     * @return string
+     */
+    public function getCustomerBillingCountry()
+    {
+        if (!empty($this->customerBillingCountry)) {
+            return strtoupper($this->customerBillingCountry);
+        }
+
+        $order = $this->getOrderPayOrder();
+        if ($order && $order->get_billing_country()) {
+            return strtoupper($order->get_billing_country());
+        }
+
+        if (function_exists('WC') && WC()->customer && WC()->customer->get_billing_country()) {
+            return strtoupper(WC()->customer->get_billing_country());
+        }
+
+        return '';
+    }
+
+    /**
+     * Resolve the WC order being paid on the order-pay / pay-for-order flow, if any.
+     *
+     * Query vars (and is_wc_endpoint_url('order-pay') / is_checkout_pay_page()) are only
+     * populated after parse_request. Pay-for-order still includes the secret order key
+     * in GET/POST, so that key is used to load the order when the endpoint is not ready.
+     *
+     * @return \WC_Order|null
+     */
+    protected function getOrderPayOrder()
+    {
+        $orderId = $this->getOrderPayOrderIdFromRequest();
+        $orderKey = $this->getOrderPayOrderKeyFromRequest();
+
+        // Fallback: resolve from order key when the order-pay query var is not available yet.
+        if (!$orderId && $orderKey && function_exists('wc_get_order_id_by_order_key')) {
+            $orderId = absint(wc_get_order_id_by_order_key($orderKey));
+        }
+
+        if (!$orderId) {
+            return null;
+        }
+
+        $order = wc_get_order($orderId);
+        if (!($order instanceof \WC_Order)) {
+            return null;
+        }
+
+        if ($orderKey && !hash_equals((string) $order->get_order_key(), (string) $orderKey)) {
+            return null;
+        }
+
+        // Numeric order-pay IDs without a matching key must not be trusted.
+        if (!$orderKey) {
+            return null;
+        }
+
+        return $order;
+    }
+
+    /**
+     * Read the order-pay ID from query vars, request, or pretty permalink path.
+     *
+     * @return int
+     */
+    protected function getOrderPayOrderIdFromRequest()
+    {
+        if (!empty($GLOBALS['wp']->query_vars['order-pay'])) {
+            return absint($GLOBALS['wp']->query_vars['order-pay']);
+        }
+
+        if (function_exists('get_query_var')) {
+            $orderId = absint(get_query_var('order-pay'));
+            if ($orderId) {
+                return $orderId;
+            }
+        }
+
+        if (isset($_GET['order-pay'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            return absint(wp_unslash($_GET['order-pay']));
+        }
+
+        if (!empty($_SERVER['REQUEST_URI']) && preg_match('#/order-pay/(\d+)/?#', (string) wp_unslash($_SERVER['REQUEST_URI']), $matches)) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            return absint($matches[1]);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Read the WooCommerce order key from pay-for-order / order-received request data.
+     *
+     * @return string
+     */
+    protected function getOrderPayOrderKeyFromRequest()
+    {
+        if (isset($_GET['key'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            return wc_clean(wp_unslash($_GET['key']));
+        }
+
+        if (isset($_POST['key'])) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            return wc_clean(wp_unslash($_POST['key']));
+        }
+
+        return '';
     }
 
     /**

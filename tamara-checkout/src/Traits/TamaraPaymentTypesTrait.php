@@ -8,6 +8,7 @@ use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Money;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\FastTamara\FastTamaraEligibility;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Checkout\CheckPaymentOptionsAvailabilityRequest;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Request\FastTamara\FastTamaraEligibilityRequest;
+use Tamara\Wp\Plugin\Helpers\PhoneHelper;
 use Tamara\Wp\Plugin\Services\WCTamaraGateway;
 use Exception;
 
@@ -620,6 +621,13 @@ trait TamaraPaymentTypesTrait
             return true;
         }
 
+        $billingCountry = $this->getCustomerBillingCountry() ?: $countryCode;
+        $customerPhone = PhoneHelper::formatForPreCheckout($customerPhone, $billingCountry);
+
+        if (empty($customerPhone)) {
+            return true;
+        }
+
         /** @var WCTamaraGateway $wcTamaraGateway */
         $wcTamaraGateway = $this->getWCTamaraGatewayService();
         $cacheKey = $wcTamaraGateway->buildPreCheckoutEligibilityCacheKey($cartTotal, $customerPhone, $countryCode, $customerEmail);
@@ -637,7 +645,7 @@ trait TamaraPaymentTypesTrait
         $fastTamaraEligibility = (new FastTamaraEligibility())
             ->setAmount((float) $cartTotal)
             ->setCurrency((string) $currency)
-            ->setPhoneNumber( (string) $customerPhone)
+            ->setPhoneNumber((string) $customerPhone)
             ->setEmail((string) $customerEmail);
 
         try {
