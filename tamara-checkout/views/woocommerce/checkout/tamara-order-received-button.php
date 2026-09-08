@@ -5,8 +5,10 @@
         <a href="https://app.tamara.co/payments" class="tamara-view-and-pay-button__text--up"
            target="_blank"><?php echo esc_html(__('View Your Orders',
                 'tamara-checkout')) ?></a>
-        <a href="https://app.tamara.co" class="tamara-view-and-pay-button__text--down"
+        <?php if (!empty($viewParams['showPayButton'])) : ?>
+        <a href="https://app.tamara.co" class="tamara-view-and-pay-button__text--down" id="tamara-order-pay-button"
            target="_blank"><?php echo esc_html(__('Go to Tamara and pay',
                 'tamara-checkout')) ?></a>
+        <?php endif; ?>
     </div>
 </div>

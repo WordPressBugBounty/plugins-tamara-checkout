@@ -8,6 +8,7 @@ use Tamara\Wp\Plugin\Dependencies\Illuminate\Container\Container;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Money;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Model\Payment\Refund;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Order\GetOrderByReferenceIdRequest;
+use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Order\GetOrderRequest;
 use Tamara\Wp\Plugin\Dependencies\Tamara\Request\Payment\RefundRequest;
 use Tamara\Wp\Plugin\Helpers\MoneyHelper;
 use Tamara\Wp\Plugin\Interfaces\WPPluginInterface;
@@ -59,7 +60,12 @@ class TamaraCheckout extends Container implements WPPluginInterface
         TAMARA_GATEWAY_PAY_IN_12 = 'tamara-gateway-pay-in-12',
         TAMARA_GATEWAY_CHECKOUT_ID = 'tamara-gateway-checkout',
         TAMARA_AUTHORISED_STATUS = 'authorised',
+        TAMARA_AUTHORIZED_STATUS = 'authorized',
         TAMARA_CANCELED_STATUS = 'canceled',
+        TAMARA_EXPIRED_STATUS = 'expired',
+        TAMARA_DECLINED_STATUS = 'declined',
+        TAMARA_REFUNDED_STATUS = 'refunded',
+        TAMARA_CAPTURED_STATUS = 'captured',
         TAMARA_PARTIALLY_CAPTURED_STATUS = 'partially_captured',
         TAMARA_FULLY_CAPTURED_STATUS = 'fully_captured',
         TAMARA_PARTIALLY_REFUNDED_STATUS = 'partially_refunded',
@@ -108,6 +114,11 @@ class TamaraCheckout extends Container implements WPPluginInterface
      * @var string The customer billing country on checkout (ISO 3166-1 alpha-2)
      */
     protected $customerBillingCountry;
+
+    /**
+     * @var array<int, bool>
+     */
+    protected $orderReceivedAuthoriseResults = [];
 
     /**
      * Tamara_Checkout constructor.
@@ -280,9 +291,11 @@ class TamaraCheckout extends Container implements WPPluginInterface
 
         add_action('wp_loaded', [$this, 'overrideWcClearCart'], 0);
         add_action('wp_loaded', [$this, 'cancelOrder'], 21);
+        add_action('template_redirect', [$this, 'maybeAuthoriseTamaraOrderOnOrderReceivedPage'], 5);
 
         // Add Tamara Note on Order Received page
         add_filter('woocommerce_thankyou_order_received_text', [$this, 'tamaraOrderReceivedText'], 10, 2);
+        add_filter('woocommerce_my_account_my_orders_actions', [$this, 'removeTamaraPayOrderActionOnOrderReceived'], 10, 2);
 
     }
 
@@ -319,18 +332,50 @@ class TamaraCheckout extends Container implements WPPluginInterface
             return $str;
         }
 
-        $payment_method = $order->get_payment_method();
+        if ($this->isTamaraOrder($order)) {
+            $order = wc_get_order($order->get_id());
+            if (!$order instanceof \WC_Order) {
+                return $str;
+            }
 
-        if (!empty($payment_method) && $this->isTamaraGateway($payment_method)) {
+            $showPayButton = $order->has_status('pending') && !$this->isOrderAuthorised($order->get_id());
             $tamaraOrderReceivedHtml = $this->getServiceView()->render('views/woocommerce/checkout/tamara-order-received-button',
                 [
                     'textDomain' => 'tamara-checkout',
+                    'showPayButton' => $showPayButton,
                 ]);
 
             return $str.$tamaraOrderReceivedHtml;
         }
 
         return $str;
+    }
+
+    /**
+     * Remove the WooCommerce "Pay" action from order details on the thank-you page
+     * once the Tamara order no longer needs payment.
+     *
+     * @param array    $actions
+     * @param WC_Order $order
+     *
+     * @return array
+     */
+    public function removeTamaraPayOrderActionOnOrderReceived($actions, $order)
+    {
+        if (!$order instanceof \WC_Order || !is_order_received_page() || !$this->isTamaraOrder($order)) {
+            return $actions;
+        }
+
+        $order = wc_get_order($order->get_id());
+        if (!$order instanceof \WC_Order) {
+            return $actions;
+        }
+
+        if ($this->isOrderAuthorised($order->get_id()) || !$order->has_status('pending')) {
+            unset($actions['pay']);
+        }
+
+        return $actions;
     }
 
     /**
@@ -686,7 +731,7 @@ class TamaraCheckout extends Container implements WPPluginInterface
     }
 
     /**
-     * Force pending authorise payments within 180 days to be authorised
+     * Force pending authorise payments within 180 days to be synced with Tamara
      *
      */
     public function forceAuthoriseTamaraOrder()
@@ -1019,16 +1064,40 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function getTamaraOrderByWcOrderId($wcOrderId)
     {
         $tamaraClient = $this->getWCTamaraGatewayService()->tamaraClient;
+        $tamaraOrderId = $this->getStoredTamaraOrderId($wcOrderId);
+
+        if ($tamaraOrderId !== '') {
+            try {
+                $tamaraOrderResponse = $tamaraClient->getOrder(new GetOrderRequest($tamaraOrderId));
+                $this->logMessage(sprintf("Tamara Get Order by ID Response: %s", print_r($tamaraOrderResponse, true)));
+                if ($tamaraOrderResponse->isSuccess()) {
+                    $this->getWCTamaraGatewayService()->syncTamaraOrderMetaFromRemoteOrder($wcOrderId, $tamaraOrderResponse);
+
+                    return $tamaraOrderResponse;
+                }
+            } catch (Exception $tamaraOrderByIdException) {
+                $this->logMessage(
+                    sprintf(
+                        "Tamara Get Order by ID Failed Response.\nError message: '%s'.\nTrace: %s",
+                        $tamaraOrderByIdException->getMessage(),
+                        $tamaraOrderByIdException->getTraceAsString()
+                    )
+                );
+            }
+        }
+
         try {
             $tamaraOrderResponse = $tamaraClient->getOrderByReferenceId(new GetOrderByReferenceIdRequest($wcOrderId));
             $this->logMessage(sprintf("Tamara Get Order by Reference ID Response: %s", print_r($tamaraOrderResponse, true)));
             if ($tamaraOrderResponse->isSuccess()) {
+                $this->getWCTamaraGatewayService()->syncTamaraOrderMetaFromRemoteOrder($wcOrderId, $tamaraOrderResponse);
+
                 return $tamaraOrderResponse;
             }
         } catch (Exception $tamaraOrderResponseException) {
             $this->logMessage(
                 sprintf(
-                    "Tamara Get Order by Reference ID Failed Response.\nError message: ' %s'.\nTrace: %s",
+                    "Tamara Get Order by Reference ID Failed Response.\nError message: '%s'.\nTrace: %s",
                     $tamaraOrderResponseException->getMessage(),
                     $tamaraOrderResponseException->getTraceAsString()
                 )
@@ -1039,20 +1108,131 @@ class TamaraCheckout extends Container implements WPPluginInterface
     }
 
     /**
-     * If the order is not authorised from Tamara, do it on the Tamara Success Url returned
+     * Read a saved Tamara order id from WooCommerce order meta.
+     *
+     * @param int $wcOrderId
+     *
+     * @return string
+     */
+    protected function getStoredTamaraOrderId($wcOrderId)
+    {
+        $tamaraOrderId = get_post_meta($wcOrderId, '_tamara_order_id', true);
+        if (empty($tamaraOrderId)) {
+            $tamaraOrderId = get_post_meta($wcOrderId, 'tamara_order_id', true);
+        }
+
+        return !empty($tamaraOrderId) ? (string) $tamaraOrderId : '';
+    }
+
+    /**
+     * Authorise/sync the Tamara order during the order-received page request, before templates render.
+     */
+    public function maybeAuthoriseTamaraOrderOnOrderReceivedPage()
+    {
+        if (!$this->getWCTamaraGatewayService()->isTamaraCheckoutOrderReceivedPage()) {
+            return;
+        }
+
+        $wcOrderId = $this->resolveOrderReceivedWcOrderId();
+        if (!$wcOrderId) {
+            return;
+        }
+
+        $wcOrder = wc_get_order($wcOrderId);
+        if (!$wcOrder instanceof \WC_Order || !$this->isTamaraGateway($wcOrder->get_payment_method())) {
+            return;
+        }
+
+        $orderKey = $this->resolveOrderReceivedOrderKey();
+
+        if (!$this->verifyOrderOwnership($wcOrder, $orderKey) || !$this->isTamaraOrder($wcOrder)) {
+            return;
+        }
+
+        if ($this->isOrderAuthorised($wcOrderId) || !$wcOrder->has_status('pending')) {
+            $this->orderReceivedAuthoriseResults[$wcOrderId] = true;
+            $this->refreshWcOrderCache($wcOrderId);
+
+            return;
+        }
+
+        $this->orderReceivedAuthoriseResults[$wcOrderId] = $this->authoriseOrder($wcOrderId);
+        $this->refreshWcOrderCache($wcOrderId);
+    }
+
+    /**
+     * @param int $wcOrderId
+     *
+     * @return bool
+     */
+    public function wasOrderReceivedAuthoriseSuccessful($wcOrderId)
+    {
+        return !empty($this->orderReceivedAuthoriseResults[$wcOrderId]);
+    }
+
+    /**
+     * @return int
+     */
+    public function resolveOrderReceivedWcOrderId()
+    {
+        global $wp;
+
+        $wcOrderId = absint(wp_unslash($_GET['wcOrderId'] ?? 0));
+        if (!$wcOrderId && !empty($wp->query_vars['order-received'])) {
+            $wcOrderId = absint($wp->query_vars['order-received']);
+        }
+
+        return $wcOrderId;
+    }
+
+    /**
+     * @return string
+     */
+    public function resolveOrderReceivedOrderKey()
+    {
+        if (isset($_GET['key'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            return wc_clean(wp_unslash($_GET['key']));
+        }
+
+        if (isset($_GET['order'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            return wc_clean(wp_unslash($_GET['order']));
+        }
+
+        return '';
+    }
+
+    /**
+     * @param int $wcOrderId
+     */
+    protected function refreshWcOrderCache($wcOrderId)
+    {
+        if (function_exists('wc_delete_shop_order_transients')) {
+            wc_delete_shop_order_transients($wcOrderId);
+        }
+
+        clean_post_cache($wcOrderId);
+
+        $wcOrder = wc_get_order($wcOrderId);
+        if ($wcOrder instanceof \WC_Order) {
+            $wcOrder->read_meta_data(true);
+        }
+    }
+
+    /**
+     * If the order is pending payment, sync it with the remote Tamara order status.
      */
     public function tamaraAuthoriseHandler()
     {
-        $wcOrderId = absint(filter_input(INPUT_POST, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT));
+        $wcOrderId = absint(wp_unslash($_POST['wcOrderId'] ?? 0));
         $orderKey = isset($_POST['order']) ? wc_clean(wp_unslash($_POST['order'])) : '';
         $wcOrder = $wcOrderId ? wc_get_order($wcOrderId) : false;
 
-        if (!$this->verifyOrderOwnership($wcOrder, $orderKey) || !$this->isTamaraGateway($wcOrder->get_payment_method())) {
+        if (!$wcOrder instanceof \WC_Order || !$this->verifyOrderOwnership($wcOrder, $orderKey) || !$this->isTamaraOrder($wcOrder)) {
             wp_send_json(
                 [
                     'message' => 'authorise_failed',
                 ],
-                403
+                400
             );
         }
 
@@ -1067,7 +1247,8 @@ class TamaraCheckout extends Container implements WPPluginInterface
         wp_send_json(
             [
                 'message' => 'authorise_failed',
-            ]
+            ],
+            202
         );
     }
 
@@ -1140,11 +1321,20 @@ class TamaraCheckout extends Container implements WPPluginInterface
      */
     public function verifyOrderOwnership($wcOrder, $orderKey)
     {
-        if (!$wcOrder instanceof \WC_Order || $orderKey === '') {
+        if (!$wcOrder instanceof \WC_Order) {
             return false;
         }
 
-        return hash_equals($wcOrder->get_order_key(), (string) $orderKey);
+        if ($orderKey !== '' && hash_equals($wcOrder->get_order_key(), (string) $orderKey)) {
+            return true;
+        }
+
+        $customerId = (int) $wcOrder->get_customer_id();
+        if ($customerId > 0 && is_user_logged_in() && (int) get_current_user_id() === $customerId) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1205,35 +1395,250 @@ class TamaraCheckout extends Container implements WPPluginInterface
     }
 
     /**
-     * @param $wcOrderId
+     * Sync a pending WooCommerce order with the remote Tamara order status.
      *
-     * @return bool true if an authorise action is made successfully, false if failed
-     * or already authorised
+     * @param int $wcOrderId
+     *
+     * @return bool true when the order was synced or already finalised, false when still pending
      */
     public function authoriseOrder($wcOrderId)
     {
         /** @var WC_Order $wcOrder */
         $wcOrder = wc_get_order($wcOrderId);
-        
+
+        if (!$wcOrder) {
+            return false;
+        }
+
+        if ($this->isOrderAuthorised($wcOrderId) || $wcOrder->get_status() !== 'pending') {
+            return true;
+        }
+
         try {
-            if (!$this->isOrderAuthorised($wcOrderId) && $wcOrder && $wcOrder->get_status() === 'pending') {
-                $tamaraOrderId = (string) $this->getTamaraOrderId($wcOrderId);
-                if (empty($tamaraOrderId)) {
-                    return false;
-                }
-
-                /** @var TamaraNotificationService $tamaraNotificationService */
-                $tamaraNotificationService = $this->getService(TamaraNotificationService::class);
-                $tamaraNotificationService->authoriseOrder($wcOrderId, $tamaraOrderId);
-
-                if ($this->isOrderAuthorised($wcOrderId)) {
-                    return true;
-                }
+            $tamaraOrder = $this->getTamaraOrderByWcOrderId($wcOrderId);
+            if (!$tamaraOrder) {
+                return false;
             }
+
+            $tamaraOrderId = (string) $tamaraOrder->getOrderId();
+            if ($tamaraOrderId === '') {
+                return false;
+            }
+
+            $this->getWCTamaraGatewayService()->updateTamaraOrderId($wcOrderId, $tamaraOrderId);
+
+            return $this->processTamaraOrderByRemoteStatus($wcOrder, $wcOrderId, $tamaraOrder, $tamaraOrderId);
         } catch (Exception $exception) {
+            $this->logMessage(
+                sprintf(
+                    "Tamara - Failed to sync pending order.\nError message: '%s'.\nTrace: %s",
+                    $exception->getMessage(),
+                    $exception->getTraceAsString()
+                )
+            );
         }
 
         return false;
+    }
+
+    /**
+     * Apply WooCommerce order updates based on the remote Tamara order status.
+     *
+     * @param WC_Order $wcOrder
+     * @param int      $wcOrderId
+     * @param mixed    $tamaraOrder
+     * @param string   $tamaraOrderId
+     *
+     * @return bool
+     *
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     */
+    protected function processTamaraOrderByRemoteStatus($wcOrder, $wcOrderId, $tamaraOrder, $tamaraOrderId)
+    {
+        $tamaraOrderStatus = strtolower((string) $tamaraOrder->getStatus());
+
+        if ($this->isTamaraRemoteAuthorisedStatus($tamaraOrderStatus)) {
+            return $this->handleTamaraRemoteAuthorisedOrder($wcOrder, $wcOrderId, $tamaraOrderId);
+        }
+
+        if ($this->isTamaraRemoteCapturedStatus($tamaraOrderStatus)) {
+            return $this->handleTamaraRemoteCapturedOrder($wcOrder, $wcOrderId, $tamaraOrder, $tamaraOrderStatus);
+        }
+
+        if ($this->isTamaraRemoteCancelledStatus($tamaraOrderStatus)) {
+            return $this->handleTamaraRemoteCancelledOrder($wcOrder, $tamaraOrderStatus);
+        }
+
+        if ('approved' === $tamaraOrderStatus) {
+            /** @var TamaraNotificationService $tamaraNotificationService */
+            $tamaraNotificationService = $this->getService(TamaraNotificationService::class);
+            $tamaraNotificationService->authoriseOrder($wcOrderId, $tamaraOrderId);
+
+            return $this->isOrderAuthorised($wcOrderId);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param string $tamaraOrderStatus
+     *
+     * @return bool
+     */
+    protected function isTamaraRemoteAuthorisedStatus($tamaraOrderStatus)
+    {
+        return in_array($tamaraOrderStatus, [static::TAMARA_AUTHORISED_STATUS, static::TAMARA_AUTHORIZED_STATUS], true);
+    }
+
+    /**
+     * @param string $tamaraOrderStatus
+     *
+     * @return bool
+     */
+    protected function isTamaraRemoteCapturedStatus($tamaraOrderStatus)
+    {
+        return in_array(
+            $tamaraOrderStatus,
+            [static::TAMARA_FULLY_CAPTURED_STATUS, static::TAMARA_PARTIALLY_CAPTURED_STATUS, static::TAMARA_CAPTURED_STATUS],
+            true
+        );
+    }
+
+    /**
+     * @param string $tamaraOrderStatus
+     *
+     * @return bool
+     */
+    protected function isTamaraRemoteCancelledStatus($tamaraOrderStatus)
+    {
+        return in_array(
+            $tamaraOrderStatus,
+            [
+                static::TAMARA_EXPIRED_STATUS,
+                static::TAMARA_DECLINED_STATUS,
+                static::TAMARA_CANCELED_STATUS,
+                static::TAMARA_REFUNDED_STATUS,
+                static::TAMARA_PARTIALLY_REFUNDED_STATUS,
+                static::TAMARA_FULLY_REFUNDED_STATUS,
+            ],
+            true
+        );
+    }
+
+    /**
+     * @param mixed $tamaraOrder
+     *
+     * @return array
+     */
+    protected function getTamaraCaptureIdsFromOrder($tamaraOrder)
+    {
+        $captureIds = [];
+        $transactions = $tamaraOrder->getTransactions();
+
+        if (!$transactions || !$transactions->getCaptures()) {
+            return $captureIds;
+        }
+
+        foreach ($transactions->getCaptures()->toArray() as $capture) {
+            if (!empty($capture['capture_id'])) {
+                $captureIds[] = $capture['capture_id'];
+            }
+        }
+
+        return $captureIds;
+    }
+
+    /**
+     * @param WC_Order $wcOrder
+     * @param int      $wcOrderId
+     * @param string   $tamaraOrderId
+     *
+     * @return bool
+     *
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     */
+    protected function handleTamaraRemoteAuthorisedOrder($wcOrder, $wcOrderId, $tamaraOrderId)
+    {
+        $tamaraStatus = $this->getWCTamaraGatewayService()->tamaraStatus;
+        $orderNote = 'Tamara - Order is already authorised on Tamara.';
+        $newOrderStatus = $tamaraStatus['authorise_done'];
+        $updateOrderStatusNote = 'Payment received. ';
+
+        $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, $updateOrderStatusNote);
+        $this->finalizeTamaraAuthorisedOrder($wcOrder, $wcOrderId, $tamaraOrderId);
+
+        return true;
+    }
+
+    /**
+     * @param WC_Order $wcOrder
+     * @param int      $wcOrderId
+     * @param mixed    $tamaraOrder
+     * @param string   $tamaraOrderStatus
+     *
+     * @return bool
+     *
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     */
+    protected function handleTamaraRemoteCapturedOrder($wcOrder, $wcOrderId, $tamaraOrder, $tamaraOrderStatus)
+    {
+        $captureIds = $this->getTamaraCaptureIdsFromOrder($tamaraOrder);
+        $captureIdsString = !empty($captureIds) ? implode(', ', $captureIds) : 'N/A';
+        $captureType = static::TAMARA_PARTIALLY_CAPTURED_STATUS === $tamaraOrderStatus ? 'partially' : 'fully';
+        $orderNote = sprintf(
+            'Order Payment is %s captured on Tamara, Tamara Capture IDs: %s',
+            $captureType,
+            $captureIdsString
+        );
+
+        $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, 'wc-processing', 'Payment received. ');
+
+        if (!empty($captureIds[0])) {
+            $this->getWCTamaraGatewayService()->updateTamaraCaptureId($wcOrderId, $captureIds[0]);
+        }
+
+        $this->finalizeTamaraAuthorisedOrder($wcOrder, $wcOrderId, (string) $tamaraOrder->getOrderId());
+
+        return true;
+    }
+
+    /**
+     * @param WC_Order $wcOrder
+     * @param string   $tamaraOrderStatus
+     *
+     * @return bool
+     */
+    protected function handleTamaraRemoteCancelledOrder($wcOrder, $tamaraOrderStatus)
+    {
+        $tamaraStatus = $this->getWCTamaraGatewayService()->tamaraStatus;
+        $orderNote = sprintf('Tamara order status: %s', $tamaraOrderStatus);
+        $newOrderStatus = $tamaraStatus['payment_cancelled'];
+
+        $this->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
+
+        return true;
+    }
+
+    /**
+     * @param WC_Order $wcOrder
+     * @param int      $wcOrderId
+     * @param string   $tamaraOrderId
+     *
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     */
+    protected function finalizeTamaraAuthorisedOrder($wcOrder, $wcOrderId, $tamaraOrderId)
+    {
+        if (function_exists('WC') && WC()->cart) {
+            WC()->cart->empty_cart();
+        }
+
+        update_post_meta($wcOrderId, 'tamara_authorized', true);
+        update_post_meta($wcOrderId, 'payment_method', $wcOrder->get_payment_method());
+        $this->getWCTamaraGatewayService()->updateTamaraOrderId($wcOrderId, $tamaraOrderId);
+
+        if (static::TAMARA_GATEWAY_CHECKOUT_ID === $wcOrder->get_payment_method()) {
+            $this->updateWcOrderPaymentMethodAccordingToTamaraOrder($wcOrderId, $wcOrder);
+        }
     }
 
     /**
@@ -2207,6 +2612,29 @@ class TamaraCheckout extends Container implements WPPluginInterface
     public function isTamaraGateway($paymentMethodId)
     {
         return !!in_array($paymentMethodId, $this->getAllTamaraGatewayIds());
+    }
+
+    /**
+     * Check if a WooCommerce order belongs to Tamara (gateway id or Tamara meta).
+     *
+     * @param WC_Order $wcOrder
+     *
+     * @return bool
+     */
+    public function isTamaraOrder($wcOrder)
+    {
+        if (!$wcOrder instanceof \WC_Order) {
+            return false;
+        }
+
+        if ($this->isTamaraGateway($wcOrder->get_payment_method())) {
+            return true;
+        }
+
+        return !empty($wcOrder->get_meta('_tamara_checkout_session_id'))
+            || !empty($wcOrder->get_meta('_tamara_order_id'))
+            || !empty($wcOrder->get_meta('tamara_order_id'))
+            || !empty(get_post_meta($wcOrder->get_id(), 'tamara_authorized', true));
     }
 
     /**

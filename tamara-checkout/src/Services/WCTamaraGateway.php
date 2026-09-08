@@ -146,6 +146,8 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         $this->initBaseAttributes();
         $this->initSettingAttributes();
+        $this->initFormFields();
+        $this->initSettings();
     }
 
     /**
@@ -281,7 +283,7 @@ class WCTamaraGateway extends WC_Payment_Gateway
      *
      * @return bool
      */
-    protected function isTamaraCheckoutOrderReceivedPage()
+    public function isTamaraCheckoutOrderReceivedPage()
     {
         global $wp;
 
@@ -486,14 +488,20 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function setTamaraIconForPaymentGateway($iconHtml, $gatewayId)
     {
-        if ($this->id === $gatewayId && null == $this->icon) {
-            $iconHtml = $this->getContainer()->getServiceView()->render('views/woocommerce/checkout/tamara-checkout-icon',
-                [
-                    'siteLocale' => substr(get_locale(), 0, 2) ?? 'en',
-                ]);
+        if ($this->id !== $gatewayId) {
+            return $iconHtml;
         }
 
-        return $iconHtml;
+        $iconUrl = TamaraCheckout::TAMARA_LOGO_BADGE_EN_URL;
+        if (substr(get_locale(), 0, 2) === 'ar') {
+            $iconUrl = TamaraCheckout::TAMARA_LOGO_BADGE_AR_URL;
+        }
+
+        return sprintf(
+            '<img src="%s" alt="%s" style="max-height: 25px; display: inline; vertical-align: middle; float: none; margin: 0 1rem;" />',
+            esc_url($iconUrl),
+            esc_attr($this->get_title())
+        );
     }
 
     /**
@@ -1821,6 +1829,10 @@ class WCTamaraGateway extends WC_Payment_Gateway
         $this->has_fields = true;
         $this->description = '';
         $this->paymentType = static::PAYMENT_TYPE_PAY_BY_LATER;
+        $this->method_title = 'Tamara Gateway';
+        $this->method_description = 'Pay Later with Tamara';
+        $this->icon = TamaraCheckout::TAMARA_LOGO_BADGE_EN_URL;
+        $this->order_button_text = 'Proceed to Tamara Payment';
     }
 
     /**
@@ -2615,12 +2627,19 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function handleTamaraSuccessOrderReceivedPage()
     {
-        $wcOrderId = filter_input(INPUT_GET, 'wcOrderId', FILTER_SANITIZE_NUMBER_INT) ?? null;
-        $wcOrder = wc_get_order($wcOrderId);
+        $wcOrderId = TamaraCheckout::getInstance()->resolveOrderReceivedWcOrderId();
+        $wcOrder = $wcOrderId ? wc_get_order($wcOrderId) : false;
 
-        if (!empty($wcOrder) && TamaraCheckout::getInstance()->isTamaraGateway($wcOrder->get_payment_method())) {
+        if (!empty($wcOrder) && TamaraCheckout::getInstance()->isTamaraOrder($wcOrder)) {
             wp_enqueue_script('tamara-checkout-success', TamaraCheckout::getInstance()->baseUrl.'/assets/dist/js/tamaraSuccess.js',
                 ['jquery'], TamaraCheckout::getInstance()->version, true);
+            wp_localize_script(
+                'tamara-checkout-success',
+                'tamaraSuccessParams',
+                [
+                    'authoriseSuccess' => TamaraCheckout::getInstance()->wasOrderReceivedAuthoriseSuccessful($wcOrderId),
+                ]
+            );
             do_action('after_tamara_success');
         } else {
             return;
@@ -2759,6 +2778,38 @@ class WCTamaraGateway extends WC_Payment_Gateway
     {
         update_post_meta($wcOrderId, 'tamara_order_id', $tamaraOrderId);
         update_post_meta($wcOrderId, '_tamara_order_id', $tamaraOrderId);
+    }
+
+    /**
+     * Persist Tamara payment type, instalments, and order status from a remote order response.
+     *
+     * @param int                                                                                    $wcOrderId
+     * @param \Tamara\Wp\Plugin\Dependencies\Tamara\Response\Order\GetOrderByReferenceIdResponse $tamaraOrder
+     */
+    public function syncTamaraOrderMetaFromRemoteOrder($wcOrderId, $tamaraOrder): void
+    {
+        $paymentType = (string) $tamaraOrder->getPaymentType();
+        if ($paymentType !== '') {
+            update_post_meta($wcOrderId, '_tamara_payment_type', $paymentType);
+            update_post_meta($wcOrderId, 'tamara_payment_type', $paymentType);
+        }
+
+        $instalments = $tamaraOrder->getInstalments();
+        if (null !== $instalments && $instalments > 0) {
+            update_post_meta($wcOrderId, '_tamara_installments', $instalments);
+            update_post_meta($wcOrderId, 'tamara_installments', $instalments);
+        } else {
+            delete_post_meta($wcOrderId, '_tamara_installments');
+            delete_post_meta($wcOrderId, 'tamara_installments');
+        }
+
+        $orderStatus = (string) $tamaraOrder->getStatus();
+        if ($orderStatus !== '') {
+            update_post_meta($wcOrderId, '_tamara_order_status', $orderStatus);
+            update_post_meta($wcOrderId, 'tamara_order_status', $orderStatus);
+        }
+
+        $this->updateTamaraOrderId($wcOrderId, $tamaraOrder->getOrderId());
     }
 
     /**

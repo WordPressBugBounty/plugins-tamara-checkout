@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.22
+Stable tag: 1.9.9.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,23 @@ You can find out more how to install and use the plugin with our user guides doc
 * Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
+
+= 1.9.9.23 - 2026-09-08 =
+
+Enhancements:
+
+* Sync pending WooCommerce orders with remote Tamara order status on order-received and cron (authorised, captured, cancelled, approved)
+* Authorise Tamara orders server-side on the order-received page before AJAX polling
+* Fetch Tamara order details by Tamara order ID first, with reference ID fallback
+* Persist Tamara payment type, instalments, and order status to order meta from remote order data
+* Hide Tamara and WooCommerce pay actions on order-received after successful authorisation
+* Improve WooCommerce Payments settings tab compatibility (gateway registration and icon)
+* Rebuild order-received authorise JavaScript with order key support
+
+Fixes:
+
+* Fix order-received authorise AJAX returning failed responses when order key was missing from built assets
+* Use appropriate HTTP status codes for authorise AJAX responses (400 invalid request, 202 pending)
 
 = 1.9.9.22 - 2026-08-30 =
 
