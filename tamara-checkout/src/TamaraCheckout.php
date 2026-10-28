@@ -70,6 +70,8 @@ class TamaraCheckout extends Container implements WPPluginInterface
         TAMARA_FULLY_CAPTURED_STATUS = 'fully_captured',
         TAMARA_PARTIALLY_REFUNDED_STATUS = 'partially_refunded',
         TAMARA_FULLY_REFUNDED_STATUS = 'fully_refunded',
+        TAMARA_APPROVED_STATUS = 'approved',
+        TAMARA_NEW_STATUS = 'new',
         TAMARA_INLINE_TYPE_KNOWMORE_WIDGET_INT = 1,
         TAMARA_INLINE_TYPE_PRODUCT_WIDGET_INT = 2,
         TAMARA_INLINE_TYPE_CART_WIDGET_INT = 3,
@@ -1071,9 +1073,19 @@ class TamaraCheckout extends Container implements WPPluginInterface
                 $tamaraOrderResponse = $tamaraClient->getOrder(new GetOrderRequest($tamaraOrderId));
                 $this->logMessage(sprintf("Tamara Get Order by ID Response: %s", print_r($tamaraOrderResponse, true)));
                 if ($tamaraOrderResponse->isSuccess()) {
-                    $this->getWCTamaraGatewayService()->syncTamaraOrderMetaFromRemoteOrder($wcOrderId, $tamaraOrderResponse);
+                    if ((string) $tamaraOrderResponse->getOrderReferenceId() === (string) $wcOrderId) {
+                        $this->getWCTamaraGatewayService()->syncTamaraOrderMetaFromRemoteOrder($wcOrderId, $tamaraOrderResponse);
 
-                    return $tamaraOrderResponse;
+                        return $tamaraOrderResponse;
+                    }
+
+                    $this->logMessage(
+                        sprintf(
+                            "Tamara Get Order by ID: reference id mismatch. Expected WC order id '%s', got '%s'. Falling back to get by reference id.",
+                            $wcOrderId,
+                            $tamaraOrderResponse->getOrderReferenceId()
+                        )
+                    );
                 }
             } catch (Exception $tamaraOrderByIdException) {
                 $this->logMessage(
@@ -1485,9 +1497,40 @@ class TamaraCheckout extends Container implements WPPluginInterface
      *
      * @return bool
      */
-    protected function isTamaraRemoteAuthorisedStatus($tamaraOrderStatus)
+    public function isTamaraRemoteAuthorisedStatus($tamaraOrderStatus)
     {
-        return in_array($tamaraOrderStatus, [static::TAMARA_AUTHORISED_STATUS, static::TAMARA_AUTHORIZED_STATUS], true);
+        return in_array(
+            strtolower((string) $tamaraOrderStatus),
+            [static::TAMARA_AUTHORISED_STATUS, static::TAMARA_AUTHORIZED_STATUS],
+            true
+        );
+    }
+
+    /**
+     * Tamara remote statuses where WC cancel should not call the Tamara Cancel API.
+     *
+     * @param string $tamaraOrderStatus
+     *
+     * @return bool
+     */
+    public function isTamaraRemoteStatusSkippingCancel($tamaraOrderStatus)
+    {
+        return in_array(
+            strtolower((string) $tamaraOrderStatus),
+            [
+                static::TAMARA_EXPIRED_STATUS,
+                static::TAMARA_DECLINED_STATUS,
+                static::TAMARA_REFUNDED_STATUS,
+                static::TAMARA_PARTIALLY_REFUNDED_STATUS,
+                static::TAMARA_FULLY_REFUNDED_STATUS,
+                static::TAMARA_CAPTURED_STATUS,
+                static::TAMARA_PARTIALLY_CAPTURED_STATUS,
+                static::TAMARA_FULLY_CAPTURED_STATUS,
+                static::TAMARA_APPROVED_STATUS,
+                static::TAMARA_NEW_STATUS,
+            ],
+            true
+        );
     }
 
     /**

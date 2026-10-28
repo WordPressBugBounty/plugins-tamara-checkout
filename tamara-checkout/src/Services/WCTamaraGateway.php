@@ -1480,56 +1480,99 @@ class WCTamaraGateway extends WC_Payment_Gateway
      */
     public function tamaraCancelOrder($wcOrderId, $statusFrom, $statusTo, $wcOrder)
     {
+        if ('cancelled' !== $statusTo) {
+            return;
+        }
+
         $payment_method = $wcOrder->get_payment_method();
-        if (TamaraCheckout::TAMARA_CANCELED_STATUS === TamaraCheckout::getInstance()->getTamaraOrderStatus($wcOrderId)) {
+        if (!TamaraCheckout::getInstance()->isTamaraGateway($payment_method)) {
+            return;
+        }
+
+        $tamaraOrder = TamaraCheckout::getInstance()->getTamaraOrderByWcOrderId($wcOrderId);
+        if (!$tamaraOrder) {
+            return;
+        }
+
+        $tamaraOrderStatus = strtolower((string) $tamaraOrder->getStatus());
+        $tamaraCheckout = TamaraCheckout::getInstance();
+
+        if ($tamaraCheckout->isTamaraRemoteStatusSkippingCancel($tamaraOrderStatus)) {
+            $wcOrder->add_order_note(
+                sprintf(
+                    __('Tamara: order status on Tamara is %s, no actions made for Tamara cancelling', 'tamara-checkout'),
+                    $tamaraOrderStatus
+                )
+            );
+
+            return;
+        }
+
+        if (TamaraCheckout::TAMARA_CANCELED_STATUS === $tamaraOrderStatus) {
             $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', 'tamara-checkout'));
+
             return true;
+        }
+
+        if (!$tamaraCheckout->isTamaraRemoteAuthorisedStatus($tamaraOrderStatus)) {
+            return;
+        }
+
+        $tamaraOrderId = $tamaraOrder->getOrderId();
+        if (empty($tamaraOrderId)) {
+            return;
+        }
+
+        $wcOrderTotal = new Money(MoneyHelper::formatNumber($wcOrder->get_total()), $wcOrder->get_currency());
+        $wcShippingTotal = new Money(
+            MoneyHelper::formatNumber($wcOrder->get_shipping_total()),
+            $wcOrder->get_currency()
+        );
+        $wcTaxTotal = new Money(MoneyHelper::formatNumber($wcOrder->get_total_tax()), $wcOrder->get_currency());
+        $wcDiscountTotal = new Money(
+            MoneyHelper::formatNumber($wcOrder->get_discount_total()),
+            $wcOrder->get_currency()
+        );
+        $wcOrderItems = $this->populateTamaraOrderItems($wcOrder);
+
+        try {
+            $cancelResponse = $this->tamaraClient->cancelOrder(
+                new CancelOrderRequest(
+                    $tamaraOrderId,
+                    $wcOrderTotal,
+                    $wcOrderItems,
+                    $wcShippingTotal,
+                    $wcTaxTotal,
+                    $wcDiscountTotal
+                )
+            );
+            $tamaraCheckout->logMessage(sprintf("Tamara Cancel Response Data: %s", print_r($cancelResponse, true)));
+        } catch (Exception $tamaraCancelException) {
+            $tamaraCheckout->logMessage(
+                sprintf(
+                    "Tamara Service timeout or disconnected.\nError message: '%s'.\nTrace: %s",
+                    $tamaraCancelException->getMessage(),
+                    $tamaraCancelException->getTraceAsString()
+                )
+            );
+        }
+
+        if (isset($cancelResponse) && $cancelResponse->isSuccess()) {
+            $cancelId = $cancelResponse->getCancelId();
+            $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', 'tamara-checkout'));
+            $this->updateTamaraCancelId($wcOrderId, $cancelId);
         } else {
-            if ('cancelled' === $statusTo && TamaraCheckout::getInstance()->isTamaraGateway($payment_method)) {
-                $wcOrderTotal = new Money(MoneyHelper::formatNumber($wcOrder->get_total()), $wcOrder->get_currency());
-                $wcShippingTotal = new Money(MoneyHelper::formatNumber($wcOrder->get_shipping_total()),
-                    $wcOrder->get_currency());
-                $wcTaxTotal = new Money(MoneyHelper::formatNumber($wcOrder->get_total_tax()), $wcOrder->get_currency());
-                $wcDiscountTotal = new Money(MoneyHelper::formatNumber($wcOrder->get_discount_total()),
-                    $wcOrder->get_currency());
-                $wcOrderItems = $this->populateTamaraOrderItems($wcOrder);
-                $tamaraOrderId = $this->getTamaraOrderId($wcOrderId);
-                $captureId = $this->getTamaraCaptureId($wcOrderId);
-                if (empty($captureId) && $tamaraOrderId) {
-                    try {
-                        $cancelResponse = $this->tamaraClient->cancelOrder(new CancelOrderRequest($tamaraOrderId,
-                            $wcOrderTotal,
-                            $wcOrderItems, $wcShippingTotal, $wcTaxTotal, $wcDiscountTotal));
-                        TamaraCheckout::getInstance()->logMessage(sprintf("Tamara Cancel Response Data: %s", print_r($cancelResponse, true)));
-                    } catch (Exception $tamaraCancelException) {
-                        TamaraCheckout::getInstance()->logMessage(sprintf("Tamara Service timeout or disconnected.\nError message: '%s'.\nTrace: %s",
-                            $tamaraCancelException->getMessage(), $tamaraCancelException->getTraceAsString()));
-                    }
-
-                    if (isset($cancelResponse) && $cancelResponse->isSuccess()) {
-                        $cancelId = $cancelResponse->getCancelId();
-                        $wcOrder->add_order_note(__('Tamara – The order has been cancelled successfully', 'tamara-checkout'));
-                        $this->updateTamaraCancelId($wcOrderId, $cancelId);
-                    } else {
-                        $errorMessage = null;
-                        if (isset($tamaraCancelException) && $tamaraCancelException instanceof Exception) {
-                            $errorMessage = $tamaraCancelException->getMessage();
-                            TamaraCheckout::getInstance()->logMessage($errorMessage);
-                        } elseif (isset($cancelResponse)) {
-                            $errorMessage = $cancelResponse->getMessage();
-                            TamaraCheckout::getInstance()->logMessage($errorMessage);
-                        }
-                        $orderNote = ('Tamara – The order can not be cancelled - '.$errorMessage);
-                        $newOrderStatus = $statusFrom;
-                        TamaraCheckout::getInstance()->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
-                    }
-
-                } elseif ($captureId) {
-                    $orderNote = ('Tamara – The order can not be cancelled as it was captured. Please try "Refund" function instead.');
-                    $newOrderStatus = $statusFrom;
-                    TamaraCheckout::getInstance()->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
-                }
+            $errorMessage = null;
+            if (isset($tamaraCancelException) && $tamaraCancelException instanceof Exception) {
+                $errorMessage = $tamaraCancelException->getMessage();
+                $tamaraCheckout->logMessage($errorMessage);
+            } elseif (isset($cancelResponse)) {
+                $errorMessage = $cancelResponse->getMessage();
+                $tamaraCheckout->logMessage($errorMessage);
             }
+            $orderNote = ('Tamara – The order can not be cancelled - '.$errorMessage);
+            $newOrderStatus = $statusFrom;
+            $tamaraCheckout->updateOrderStatusAndAddOrderNote($wcOrder, $orderNote, $newOrderStatus, '');
         }
     }
 

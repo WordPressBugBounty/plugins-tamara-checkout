@@ -4,7 +4,7 @@ Tags: e-commerce, bnpl, pay in 3, pay by installments
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.3.0
-Stable tag: 1.9.9.23
+Stable tag: 1.9.9.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,14 @@ You can find out more how to install and use the plugin with our user guides doc
 * Configuration Guide: [Tamara WooCommerce Configuration](https://docs.tamara.co/docs/woo-configuration)
 
 == Changelog ==
+
+= 1.9.9.24 - 2026-10-26 =
+
+Enhancements:
+
+* Improve WooCommerce cancel workflow: fetch Tamara order details before cancelling and only call Cancel API when remote status is Authorised
+* Add order notes when Tamara status is Expired, Declined, Refunded, Captured, Approved, or New (no Cancel API call)
+* Validate Tamara order reference ID against the WooCommerce order ID when fetching by stored Tamara order ID, with get-by-reference fallback
 
 = 1.9.9.23 - 2026-09-08 =
 
